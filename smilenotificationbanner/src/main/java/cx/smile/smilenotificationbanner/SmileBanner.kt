@@ -45,6 +45,7 @@ class SmileBanner private constructor(
     private val scope = CoroutineScope(Dispatchers.Main)
     private var isExpanded = false
     private var originalStatusBarColor: Int? = null
+    private var originalSystemUiVisibility: Int? = null
 
     companion object {
         @Volatile
@@ -292,16 +293,22 @@ class SmileBanner private constructor(
     }
 
     /**
-     * Apply banner background color to status bar for TOP positioned banners
+     * Configure status bar appearance for TOP positioned banners
+     * Makes status bar transparent and adjusts icon colors based on banner brightness
      */
     private fun applyStatusBarColor() {
         if (config.position != BannerPosition.TOP) return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             val window = activity.window
+            val decorView = window.decorView
 
-            // Save original color to restore later
+            // Save original state to restore later
             originalStatusBarColor = window.statusBarColor
+            originalSystemUiVisibility = decorView.systemUiVisibility
+
+            // Make status bar transparent so banner color shows through
+            window.statusBarColor = Color.TRANSPARENT
 
             // Get banner background color
             val backgroundColor = when {
@@ -310,20 +317,57 @@ class SmileBanner private constructor(
                 else -> getDefaultBackgroundColor()
             }
 
-            // Set status bar color to match banner
-            window.statusBarColor = backgroundColor
+            // Calculate if we need light or dark status bar icons
+            val isLightBackground = isColorLight(backgroundColor)
+
+            // Set status bar icon color based on background brightness
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                var flags = decorView.systemUiVisibility
+                flags = if (isLightBackground) {
+                    // Light background -> dark icons
+                    flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                } else {
+                    // Dark background -> light icons
+                    flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
+                }
+                decorView.systemUiVisibility = flags
+            }
         }
     }
 
     /**
-     * Restore original status bar color
+     * Restore original status bar color and icon appearance
      */
     private fun restoreStatusBarColor() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            val window = activity.window
+            val decorView = window.decorView
+
+            // Restore status bar color
             originalStatusBarColor?.let {
-                activity.window.statusBarColor = it
+                window.statusBarColor = it
+            }
+
+            // Restore system UI visibility (status bar icon colors)
+            originalSystemUiVisibility?.let {
+                decorView.systemUiVisibility = it
             }
         }
+    }
+
+    /**
+     * Calculate if a color is light or dark
+     * Used to determine appropriate status bar icon color
+     */
+    private fun isColorLight(color: Int): Boolean {
+        val red = Color.red(color)
+        val green = Color.green(color)
+        val blue = Color.blue(color)
+
+        // Calculate perceived brightness using standard formula
+        val brightness = (red * 299 + green * 587 + blue * 114) / 1000
+
+        return brightness > 128
     }
 
     private fun configurDefaultBanner() {
