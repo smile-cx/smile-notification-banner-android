@@ -241,8 +241,8 @@ class SmileBanner private constructor(
     }
 
     /**
-     * Apply padding to banner container to account for system bars
-     * This ensures content doesn't overlap with status bar while the banner fills the entire top
+     * Apply padding to banner container to account for system bars and display cutout
+     * This ensures content doesn't overlap with status bar or camera cutout
      */
     private fun applySystemBarPadding() {
         val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
@@ -251,10 +251,16 @@ class SmileBanner private constructor(
 
         val insets = ViewCompat.getRootWindowInsets(rootView)
         if (insets != null && config.position == BannerPosition.TOP) {
-            val systemBarsInsets = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
-            )
-            val topInset = systemBarsInsets.top
+            // Get status bar inset
+            val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val statusBarHeight = systemBarsInsets.top
+
+            // Get display cutout inset
+            val displayCutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val cutoutHeight = displayCutoutInsets.top
+
+            // Use the maximum of status bar and cutout to ensure content is below both
+            val topInset = maxOf(statusBarHeight, cutoutHeight)
 
             // Remove top margin from card to fill the entire top
             val layoutParams = card.layoutParams as? ViewGroup.MarginLayoutParams
@@ -267,7 +273,7 @@ class SmileBanner private constructor(
             // Remove top corner radius for flush appearance
             card.radius = 0f
 
-            // Add top padding to push content below status bar
+            // Add top padding to push content below status bar and cutout
             container.setPadding(
                 container.paddingLeft,
                 container.paddingTop + topInset,
@@ -784,7 +790,7 @@ class SmileBanner private constructor(
     }
 
     /**
-     * Adjust the banner's initial vertical position to account for status bar height.
+     * Adjust the banner's initial vertical position to account for status bar and cutout.
      * This ensures the XML slide-in animation starts from completely above the screen.
      */
     private fun adjustInitialPositionForAnimation(rootView: View) {
@@ -792,12 +798,18 @@ class SmileBanner private constructor(
 
         val insets = ViewCompat.getRootWindowInsets(rootView)
         if (insets != null) {
-            val systemBarsInsets = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
-            )
-            val topInset = systemBarsInsets.top
+            // Get status bar inset
+            val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val statusBarHeight = systemBarsInsets.top
 
-            // Apply negative translation to push the banner up by the status bar height
+            // Get display cutout inset
+            val displayCutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val cutoutHeight = displayCutoutInsets.top
+
+            // Use the maximum of status bar and cutout
+            val topInset = maxOf(statusBarHeight, cutoutHeight)
+
+            // Apply negative translation to push the banner up by the status bar/cutout height
             // The XML animation will then slide it down, starting from above the screen
             card.translationY = -topInset.toFloat()
         }
