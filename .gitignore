@@ -38,9 +38,15 @@ captures/
 # IntelliJ
 *.iml
 .idea/
+!.idea/runConfigurations/
+!.run/
 misc.xml
 deploymentTargetDropDown.xml
 render.experimental.xml
+
+# Subproject IDE files (sample should not be opened separately)
+sample/.idea/
+sample/.gradle/
 
 # Keystore files
 *.jks
