@@ -43,10 +43,14 @@ class SmileBanner private constructor(
     private var bannerView: View? = null
     private var autoDismissJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Main)
+    private var isExpanded = false
 
     companion object {
         @Volatile
         private var currentBanner: SmileBanner? = null
+
+        // Queue for pending notifications when current banner is expanded
+        private val pendingQueue = mutableListOf<Pair<Activity, BannerConfig>>()
 
         /**
          * Create a banner builder for chaining configuration
@@ -62,12 +66,29 @@ class SmileBanner private constructor(
          * Internal method to create SmileBanner from config
          */
         private fun create(activity: Activity, config: BannerConfig): SmileBanner {
+            // If current banner is expanded, queue this notification instead of dismissing
+            if (currentBanner?.isExpanded == true) {
+                pendingQueue.add(Pair(activity, config))
+                // Return a dummy banner that won't show
+                return SmileBanner(activity, config)
+            }
+
             // Dismiss any existing banner instantly (without animation)
             currentBanner?.dismissInstant()
 
             val banner = SmileBanner(activity, config)
             currentBanner = banner
             return banner
+        }
+
+        /**
+         * Process the next notification in the queue
+         */
+        private fun processNextInQueue() {
+            if (pendingQueue.isNotEmpty()) {
+                val (activity, config) = pendingQueue.removeAt(0)
+                create(activity, config).show()
+            }
         }
 
         /**
@@ -158,10 +179,16 @@ class SmileBanner private constructor(
         popupWindow?.dismiss()
         popupWindow = null
         bannerView = null
-        if (currentBanner == this) {
+        val wasCurrent = currentBanner == this
+        if (wasCurrent) {
             currentBanner = null
         }
         config.onDismiss?.invoke()
+
+        // Process next notification in queue if this was the current banner
+        if (wasCurrent) {
+            processNextInQueue()
+        }
     }
 
     /**
@@ -216,6 +243,9 @@ class SmileBanner private constructor(
         if (config.duration > 0) {
             closeButton?.visibility = View.GONE
         }
+
+        // Setup swipe-to-dismiss gesture
+        setupSwipeToDismiss()
     }
 
     private fun configurDefaultBanner() {
@@ -406,8 +436,9 @@ class SmileBanner private constructor(
             if (text.isNotBlank()) {
                 config.onExpandableSubmit?.invoke(text)
                 expandableInput?.text?.clear()
-                // Optionally collapse after submit
+                // Collapse and dismiss to process queue
                 collapseExpandable(expandableContent)
+                dismiss()
             }
         }
     }
@@ -442,6 +473,7 @@ class SmileBanner private constructor(
     }
 
     private fun expandExpandable(expandableContent: ViewGroup?) {
+        isExpanded = true
         expandableContent?.visibility = View.VISIBLE
         expandableContent?.alpha = 0f
         expandableContent?.animate()
@@ -451,6 +483,7 @@ class SmileBanner private constructor(
     }
 
     private fun collapseExpandable(expandableContent: ViewGroup?) {
+        isExpanded = false
         expandableContent?.animate()
             ?.alpha(0f)
             ?.setDuration(200)
@@ -458,6 +491,93 @@ class SmileBanner private constructor(
                 expandableContent.visibility = View.GONE
             }
             ?.start()
+    }
+
+    /**
+     * Setup swipe-to-dismiss gesture
+     * For TOP position: swipe up to dismiss
+     * For BOTTOM position: swipe down to dismiss
+     */
+    private fun setupSwipeToDismiss() {
+        val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
+        val container = bannerView?.findViewById<ViewGroup>(R.id.bannerContainer) ?: return
+        var initialY = 0f
+        var initialTranslationY = 0f
+        var isDragging = false
+
+        container.setOnTouchListener { view, event ->
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    initialY = event.rawY
+                    initialTranslationY = card.translationY
+                    isDragging = false
+                    false // Allow other touch listeners to handle the event
+                }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    val deltaY = event.rawY - initialY
+                    val absDeltaY = kotlin.math.abs(deltaY)
+
+                    // Start dragging if moved more than 10 pixels
+                    if (absDeltaY > 10) {
+                        isDragging = true
+                    }
+
+                    if (isDragging) {
+                        when (config.position) {
+                            BannerPosition.TOP -> {
+                                // Allow only upward swipes (negative deltaY)
+                                if (deltaY < 0) {
+                                    card.translationY = initialTranslationY + deltaY
+                                    true // Consume the event
+                                } else false
+                            }
+                            BannerPosition.BOTTOM -> {
+                                // Allow only downward swipes (positive deltaY)
+                                if (deltaY > 0) {
+                                    card.translationY = initialTranslationY + deltaY
+                                    true // Consume the event
+                                } else false
+                            }
+                        }
+                    } else false
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    if (isDragging) {
+                        val deltaY = event.rawY - initialY
+                        val threshold = 100 // pixels to trigger dismiss
+
+                        val shouldDismiss = when (config.position) {
+                            BannerPosition.TOP -> deltaY < -threshold
+                            BannerPosition.BOTTOM -> deltaY > threshold
+                        }
+
+                        if (shouldDismiss) {
+                            // Animate out and dismiss
+                            val targetY = when (config.position) {
+                                BannerPosition.TOP -> -card.height.toFloat()
+                                BannerPosition.BOTTOM -> card.height.toFloat()
+                            }
+                            card.animate()
+                                .translationY(targetY)
+                                .alpha(0f)
+                                .setDuration(200)
+                                .withEndAction {
+                                    dismiss()
+                                }
+                                .start()
+                        } else {
+                            // Animate back to original position
+                            card.animate()
+                                .translationY(initialTranslationY)
+                                .setDuration(200)
+                                .start()
+                        }
+                        true
+                    } else false
+                }
+                else -> false
+            }
+        }
     }
 
     @ColorInt
