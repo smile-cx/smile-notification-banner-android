@@ -87,7 +87,7 @@ class SmileBanner private constructor(
                 message = message,
                 position = position
             )
-            return make(activity, config).apply { show() }
+            return create(activity, config).apply { show() }
         }
 
         /**
@@ -114,7 +114,7 @@ class SmileBanner private constructor(
                 position = position,
                 duration = duration
             )
-            return make(activity, config).apply { show() }
+            return create(activity, config).apply { show() }
         }
 
         /**
