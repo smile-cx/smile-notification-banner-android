@@ -647,9 +647,9 @@ class SmileBanner private constructor(
         val height = ViewGroup.LayoutParams.WRAP_CONTENT
 
         popupWindow = PopupWindow(bannerView, width, height, false).apply {
-            // Disable XML animation style for TOP banners (we'll use programmatic animation)
+            // Set animation style based on position
             animationStyle = when (config.position) {
-                BannerPosition.TOP -> 0 // No animation style, use programmatic
+                BannerPosition.TOP -> R.style.SmileBannerAnimationTop
                 BannerPosition.BOTTOM -> R.style.SmileBannerAnimationBottom
             }
 
@@ -667,12 +667,13 @@ class SmileBanner private constructor(
                     // Calculate insets for Android 15+ edge-to-edge support
                     val (xOffset, yOffset) = calculateInsets(rootView)
 
-                    showAtLocation(rootView, gravity, xOffset, yOffset)
-
-                    // Animate slide-in for TOP banners
+                    // For TOP banners, adjust initial position to account for status bar
+                    // This ensures the XML animation starts from above the visible screen
                     if (config.position == BannerPosition.TOP) {
-                        animateSlideIn()
+                        adjustInitialPositionForAnimation(rootView)
                     }
+
+                    showAtLocation(rootView, gravity, xOffset, yOffset)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -681,22 +682,22 @@ class SmileBanner private constructor(
     }
 
     /**
-     * Animate banner sliding in from above the screen
+     * Adjust the banner's initial vertical position to account for status bar height.
+     * This ensures the XML slide-in animation starts from completely above the screen.
      */
-    private fun animateSlideIn() {
+    private fun adjustInitialPositionForAnimation(rootView: View) {
         val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
 
-        // Start from above the screen
-        card.post {
-            val fullHeight = card.height.toFloat()
-            card.translationY = -fullHeight
+        val insets = ViewCompat.getRootWindowInsets(rootView)
+        if (insets != null) {
+            val systemBarsInsets = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            val topInset = systemBarsInsets.top
 
-            // Animate down to final position
-            card.animate()
-                .translationY(0f)
-                .setDuration(300)
-                .setInterpolator(android.view.animation.DecelerateInterpolator())
-                .start()
+            // Apply negative translation to push the banner up by the status bar height
+            // The XML animation will then slide it down, starting from above the screen
+            card.translationY = -topInset.toFloat()
         }
     }
 
