@@ -22,8 +22,8 @@
             android:layout_width="@dimen/smile_banner_icon_size"
             android:layout_height="@dimen/smile_banner_icon_size"
             android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
             tools:visibility="visible">
 
             <!-- Default icon (will be used if no custom view/image is set) -->
@@ -44,9 +44,9 @@
             android:layout_marginStart="@dimen/smile_banner_padding"
             android:layout_marginEnd="@dimen/smile_banner_padding_small"
             android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/bannerRightContainer"
-            app:layout_constraintStart_toEndOf="@id/bannerLeftContainer"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintStart_toEndOf="@id/bannerLeftContainer">
 
             <TextView
                 android:id="@+id/bannerTitle"
@@ -77,8 +77,8 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="@dimen/smile_banner_padding_small"
             android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
             tools:visibility="visible" />
 
         <!-- Expandable content (input + button) -->
