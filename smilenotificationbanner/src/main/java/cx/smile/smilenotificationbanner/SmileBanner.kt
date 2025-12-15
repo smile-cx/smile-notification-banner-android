@@ -295,10 +295,11 @@ class SmileBanner private constructor(
                 container.paddingBottom
             )
 
-            // Calculate and set minimum height to cover action bar
+            // Calculate and set minimum height on the card to cover both status bar and action bar
+            // Total coverage needed = topInset + actionBarHeight
             val actionBarHeight = getActionBarHeight()
-            val minHeight = topInset + actionBarHeight
-            container.minimumHeight = minHeight
+            val totalMinHeight = topInset + actionBarHeight
+            card.minimumHeight = totalMinHeight
         }
     }
 
