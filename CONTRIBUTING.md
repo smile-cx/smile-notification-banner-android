@@ -54,6 +54,25 @@ Before submitting a PR:
 - Add KDoc comments to public APIs
 - Update CHANGELOG.md with your changes
 
+### Release Process
+
+When creating a new release:
+
+1. Update the version in `build.gradle.kts` files
+2. Update CHANGELOG.md with the new version and changes
+3. Commit the changes
+4. Create a git tag **without** the "v" prefix:
+   ```bash
+   # Correct
+   git tag -a 1.0.0 -m "Release 1.0.0"
+
+   # Incorrect (do not use "v" prefix)
+   git tag -a v1.0.0 -m "Release 1.0.0"
+   ```
+5. Push the tag: `git push origin 1.0.0`
+
+**Important:** Tags must NOT include the "v" prefix for JitPack compatibility. Use `1.0.0`, not `v1.0.0`.
+
 ## Code of Conduct
 
 ### Our Pledge
