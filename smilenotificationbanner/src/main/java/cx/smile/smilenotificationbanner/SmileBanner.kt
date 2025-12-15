@@ -647,9 +647,9 @@ class SmileBanner private constructor(
         val height = ViewGroup.LayoutParams.WRAP_CONTENT
 
         popupWindow = PopupWindow(bannerView, width, height, false).apply {
-            // Set animation style based on position
+            // Disable XML animation style for TOP banners (we'll use programmatic animation)
             animationStyle = when (config.position) {
-                BannerPosition.TOP -> R.style.SmileBannerAnimationTop
+                BannerPosition.TOP -> 0 // No animation style, use programmatic
                 BannerPosition.BOTTOM -> R.style.SmileBannerAnimationBottom
             }
 
@@ -668,10 +668,35 @@ class SmileBanner private constructor(
                     val (xOffset, yOffset) = calculateInsets(rootView)
 
                     showAtLocation(rootView, gravity, xOffset, yOffset)
+
+                    // Animate slide-in for TOP banners
+                    if (config.position == BannerPosition.TOP) {
+                        animateSlideIn()
+                    }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
             }
+        }
+    }
+
+    /**
+     * Animate banner sliding in from above the screen
+     */
+    private fun animateSlideIn() {
+        val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
+
+        // Start from above the screen
+        card.post {
+            val fullHeight = card.height.toFloat()
+            card.translationY = -fullHeight
+
+            // Animate down to final position
+            card.animate()
+                .translationY(0f)
+                .setDuration(300)
+                .setInterpolator(android.view.animation.DecelerateInterpolator())
+                .start()
         }
     }
 
