@@ -222,6 +222,9 @@ class SmileBanner private constructor(
             configurDefaultBanner()
         }
 
+        // Apply top padding for status bar when banner is at TOP
+        applySystemBarPadding()
+
         // Set click listener on the banner
         config.onBannerClick?.let { clickListener ->
             bannerView?.setOnClickListener { view ->
@@ -246,6 +249,43 @@ class SmileBanner private constructor(
 
         // Setup swipe-to-dismiss gesture
         setupSwipeToDismiss()
+    }
+
+    /**
+     * Apply padding to banner container to account for system bars
+     * This ensures content doesn't overlap with status bar while the banner fills the entire top
+     */
+    private fun applySystemBarPadding() {
+        val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
+        val container = bannerView?.findViewById<ViewGroup>(R.id.bannerContainer) ?: return
+        val rootView = activity.findViewById<View>(android.R.id.content)
+
+        val insets = ViewCompat.getRootWindowInsets(rootView)
+        if (insets != null && config.position == BannerPosition.TOP) {
+            val systemBarsInsets = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            )
+            val topInset = systemBarsInsets.top
+
+            // Remove top margin from card to fill the entire top
+            val layoutParams = card.layoutParams as? ViewGroup.MarginLayoutParams
+            layoutParams?.let {
+                val sideMargin = it.leftMargin // Keep side margins
+                it.setMargins(sideMargin, 0, sideMargin, it.bottomMargin)
+                card.layoutParams = it
+            }
+
+            // Remove top corner radius for flush appearance
+            card.radius = 0f
+
+            // Add top padding to push content below status bar
+            container.setPadding(
+                container.paddingLeft,
+                container.paddingTop + topInset,
+                container.paddingRight,
+                container.paddingBottom
+            )
+        }
     }
 
     private fun configurDefaultBanner() {
@@ -637,7 +677,8 @@ class SmileBanner private constructor(
 
     /**
      * Calculate window insets for proper positioning with edge-to-edge support
-     * Ensures banners don't overlap with system bars on Android 15+
+     * For TOP banners: no offset (fills from top, padding is applied to content)
+     * For BOTTOM banners: offset to account for navigation bar
      */
     private fun calculateInsets(rootView: View): Pair<Int, Int> {
         var xOffset = 0
@@ -648,11 +689,9 @@ class SmileBanner private constructor(
         if (insets != null) {
             when (config.position) {
                 BannerPosition.TOP -> {
-                    // Account for status bar at top
-                    val systemBarsInsets = insets.getInsets(
-                        WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
-                    )
-                    yOffset = systemBarsInsets.top
+                    // No offset - banner fills from the very top
+                    // Content padding is applied in applySystemBarPadding()
+                    yOffset = 0
                 }
                 BannerPosition.BOTTOM -> {
                     // Account for navigation bar at bottom
