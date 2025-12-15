@@ -25,5 +25,6 @@ internal data class BannerConfig(
     @ColorRes val textColorRes: Int? = null,
     @DrawableRes val icon: Int? = null,
     val onBannerClick: ((View) -> Unit)? = null,
-    val onDismiss: (() -> Unit)? = null
+    val onDismiss: (() -> Unit)? = null,
+    val vibrationDuration: VibrationDuration = VibrationDuration.NONE
 )

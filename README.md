@@ -11,10 +11,12 @@ A modern, customizable in-app notification banner library for Android, built wit
 
 - **Multiple Banner Types**: Success, Info, Warning, Error, and Custom
 - **Flexible Positioning**: Display banners at the top or bottom of the screen
-- **Smooth Animations**: Beautiful slide-in/slide-out animations
+- **Smooth Animations**: Beautiful slide-in/slide-out animations with intelligent singleton management
+- **Haptic Feedback**: Optional vibration support with configurable duration (NEW in v2.0)
 - **Auto-Dismiss**: Configure banners to automatically dismiss after a specified duration
 - **Fully Customizable**: Customize colors, icons, layouts, and more
 - **Click Listeners**: Handle banner and dismiss events
+- **Smart Singleton**: Automatically manages multiple rapid notifications with clean transitions (NEW in v2.0)
 - **Modern Architecture**: Built with Kotlin Coroutines and AndroidX
 - **Android 15 Ready**: Full edge-to-edge support with automatic window insets handling
 - **Display Cutout Support**: Works perfectly on notched/holed devices
@@ -89,14 +91,14 @@ Add the library to your module's `build.gradle.kts` (or `build.gradle`):
 **Kotlin DSL (build.gradle.kts):**
 ```kotlin
 dependencies {
-    implementation("com.github.smile-cx:smile-notification-banner-android:1.0.0")
+    implementation("com.github.smile-cx:smile-notification-banner-android:2.0.0")
 }
 ```
 
 **Groovy (build.gradle):**
 ```groovy
 dependencies {
-    implementation 'com.github.smile-cx:smile-notification-banner-android:1.0.0'
+    implementation 'com.github.smile-cx:smile-notification-banner-android:2.0.0'
 }
 ```
 
@@ -203,6 +205,62 @@ SmileBanner.make(this)
     .textColor(Color.WHITE)
     .dismissible(true)
     .show();
+```
+
+### Vibration Feedback (v2.0)
+
+Add haptic feedback to banners for better user experience:
+
+```kotlin
+import cx.smile.smilenotificationbanner.VibrationDuration
+
+// Short vibration (50ms) - default when calling vibrate()
+SmileBanner.make(this)
+    .type(BannerType.INFO)
+    .message("New message received")
+    .vibrate()
+    .show()
+
+// Medium vibration (100ms)
+SmileBanner.make(this)
+    .type(BannerType.INFO)
+    .message("Important notification")
+    .vibrate(VibrationDuration.MEDIUM)
+    .show()
+
+// Long vibration (200ms)
+SmileBanner.make(this)
+    .type(BannerType.WARNING)
+    .message("Critical alert")
+    .vibrate(VibrationDuration.LONG)
+    .show()
+```
+
+**Note:** The VIBRATE permission is automatically included in the library manifest and will be merged into your app's manifest. No manual permission declaration is required.
+
+### Smart Singleton Management (v2.0)
+
+When multiple banners are shown in quick succession (e.g., rapid in-app notifications), the library automatically:
+
+1. Dismisses the current banner **instantly** (without exit animation)
+2. Shows the new banner with its entrance animation
+3. Provides clean, non-overlapping transitions
+
+This is perfect for chat notifications, real-time updates, or any scenario with rapid successive notifications:
+
+```kotlin
+// Simulate multiple chat messages arriving
+SmileBanner.make(this)
+    .message("New message from Alice")
+    .vibrate()
+    .show()
+
+// 300ms later, another message arrives
+SmileBanner.make(this)
+    .message("New message from Bob")
+    .vibrate()
+    .show()
+// The banner from Alice disappears instantly, Bob's message shows smoothly
 ```
 
 ### Click Listeners
@@ -334,6 +392,7 @@ SmileBanner.dismissCurrent()
 | `position()` | `BannerPosition` | Banner position (TOP or BOTTOM) |
 | `duration()` | `Long` | Auto-dismiss duration in ms (0 = no auto-dismiss) |
 | `dismissible()` | `Boolean` | Show/hide close button (default: true) |
+| `vibrate()` | `VibrationDuration` (optional) | Enable vibration feedback (SHORT/MEDIUM/LONG). If called without parameter, uses SHORT (50ms). **NEW in v2.0** |
 | `customLayout()` | `@LayoutRes Int` | Custom layout resource ID |
 | `backgroundColor()` | `@ColorInt Int` | Custom background color (direct color value) |
 | `backgroundColorRes()` | `@ColorRes Int` | Custom background color (color resource ID) |
@@ -354,6 +413,8 @@ The project includes a complete sample app in the `sample` module that demonstra
 - Auto-dismiss functionality
 - Custom colors and styling
 - Click listeners and callbacks
+- **Vibration feedback with different durations** (NEW in v2.0)
+- **Rapid banner display (singleton behavior demo)** (NEW in v2.0)
 
 ### Running the Sample App
 

@@ -1,9 +1,13 @@
 package cx.smile.smilenotificationbanner
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.graphics.Color
 import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -58,8 +62,8 @@ class SmileBanner private constructor(
          * Internal method to create SmileBanner from config
          */
         private fun create(activity: Activity, config: BannerConfig): SmileBanner {
-            // Dismiss any existing banner
-            currentBanner?.dismiss()
+            // Dismiss any existing banner instantly (without animation)
+            currentBanner?.dismissInstant()
 
             val banner = SmileBanner(activity, config)
             currentBanner = banner
@@ -139,6 +143,7 @@ class SmileBanner private constructor(
                 setupBannerView()
                 showPopupWindow()
                 setupAutoDismiss()
+                performVibration()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -150,6 +155,23 @@ class SmileBanner private constructor(
      */
     fun dismiss() {
         autoDismissJob?.cancel()
+        popupWindow?.dismiss()
+        popupWindow = null
+        bannerView = null
+        if (currentBanner == this) {
+            currentBanner = null
+        }
+        config.onDismiss?.invoke()
+    }
+
+    /**
+     * Dismiss the banner instantly without animation
+     * Used internally when showing a new banner
+     */
+    private fun dismissInstant() {
+        autoDismissJob?.cancel()
+        // Disable animation before dismissing
+        popupWindow?.animationStyle = 0
         popupWindow?.dismiss()
         popupWindow = null
         bannerView = null
@@ -329,6 +351,44 @@ class SmileBanner private constructor(
     }
 
     /**
+     * Perform vibration if enabled in config
+     * Note: The VIBRATE permission should be declared in the app's AndroidManifest.xml
+     */
+    @SuppressLint("MissingPermission")
+    private fun performVibration() {
+        if (config.vibrationDuration == VibrationDuration.NONE) {
+            return
+        }
+
+        try {
+            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = activity.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                vibratorManager?.defaultVibrator
+            } else {
+                @Suppress("DEPRECATION")
+                activity.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+            }
+
+            vibrator?.let {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    it.vibrate(
+                        VibrationEffect.createOneShot(
+                            config.vibrationDuration.milliseconds,
+                            VibrationEffect.DEFAULT_AMPLITUDE
+                        )
+                    )
+                } else {
+                    @Suppress("DEPRECATION")
+                    it.vibrate(config.vibrationDuration.milliseconds)
+                }
+            }
+        } catch (e: Exception) {
+            // Silently fail if vibration is not available or permission is missing
+            e.printStackTrace()
+        }
+    }
+
+    /**
      * Builder class for fluent banner configuration
      * Allows chaining configuration methods directly on SmileBanner
      */
@@ -347,6 +407,7 @@ class SmileBanner private constructor(
         private var icon: Int? = null
         private var onBannerClick: ((View) -> Unit)? = null
         private var onDismiss: (() -> Unit)? = null
+        private var vibrationDuration: VibrationDuration = VibrationDuration.NONE
 
         /**
          * Set the banner type
@@ -437,6 +498,17 @@ class SmileBanner private constructor(
         fun onDismiss(listener: () -> Unit) = apply { this.onDismiss = listener }
 
         /**
+         * Enable vibration when banner is shown
+         * @param duration The vibration duration (SHORT, MEDIUM, or LONG)
+         */
+        fun vibrate(duration: VibrationDuration) = apply { this.vibrationDuration = duration }
+
+        /**
+         * Enable vibration with SHORT duration when banner is shown
+         */
+        fun vibrate() = apply { this.vibrationDuration = VibrationDuration.SHORT }
+
+        /**
          * Build and return the SmileBanner instance (does not show it yet)
          */
         fun build(): SmileBanner {
@@ -454,7 +526,8 @@ class SmileBanner private constructor(
                 textColorRes = textColorRes,
                 icon = icon,
                 onBannerClick = onBannerClick,
-                onDismiss = onDismiss
+                onDismiss = onDismiss,
+                vibrationDuration = vibrationDuration
             )
             return create(activity, config)
         }

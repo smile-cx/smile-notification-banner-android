@@ -42,6 +42,7 @@ class BannerConfigTest {
         assertNull(config.icon)
         assertNull(config.onBannerClick)
         assertNull(config.onDismiss)
+        assertEquals(VibrationDuration.NONE, config.vibrationDuration)
     }
 
     @Test
@@ -118,5 +119,28 @@ class BannerConfigTest {
 
         assertEquals(config1, config2)
         assertEquals(config1.hashCode(), config2.hashCode())
+    }
+
+    @Test
+    fun `config with vibration`() {
+        val config = BannerConfig(
+            type = BannerType.INFO,
+            message = "Test",
+            vibrationDuration = VibrationDuration.SHORT
+        )
+
+        assertEquals(VibrationDuration.SHORT, config.vibrationDuration)
+    }
+
+    @Test
+    fun `config with all vibration durations`() {
+        VibrationDuration.values().forEach { duration ->
+            val config = BannerConfig(
+                type = BannerType.INFO,
+                message = "Test",
+                vibrationDuration = duration
+            )
+            assertEquals(duration, config.vibrationDuration)
+        }
     }
 }

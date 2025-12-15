@@ -185,4 +185,24 @@ class BannerBuilderTest {
             .textColorRes(android.R.color.white)
         assert(result === builder)
     }
+
+    @Test
+    fun `builder accepts vibrate without parameter`() {
+        val result = builder.vibrate()
+        assert(result === builder)
+    }
+
+    @Test
+    fun `builder accepts vibrate with duration`() {
+        val result = builder.vibrate(VibrationDuration.MEDIUM)
+        assert(result === builder)
+    }
+
+    @Test
+    fun `builder accepts all vibration durations`() {
+        VibrationDuration.values().forEach { duration ->
+            val result = builder.vibrate(duration)
+            assert(result === builder)
+        }
+    }
 }

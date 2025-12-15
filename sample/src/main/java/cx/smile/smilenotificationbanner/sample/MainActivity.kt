@@ -8,6 +8,11 @@ import com.google.android.material.button.MaterialButton
 import cx.smile.smilenotificationbanner.BannerPosition
 import cx.smile.smilenotificationbanner.BannerType
 import cx.smile.smilenotificationbanner.SmileBanner
+import cx.smile.smilenotificationbanner.VibrationDuration
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -19,6 +24,8 @@ class MainActivity : AppCompatActivity() {
         setupPositionButtons()
         setupDurationButtons()
         setupCustomizationButtons()
+        setupVibrationButtons()
+        setupSingletonButtons()
     }
 
     private fun setupBannerTypeButtons() {
@@ -122,6 +129,88 @@ class MainActivity : AppCompatActivity() {
                     // Called when banner is dismissed
                 }
                 .show()
+        }
+    }
+
+    private fun setupVibrationButtons() {
+        // Short vibration (50ms)
+        findViewById<MaterialButton>(R.id.btnVibrateShort).setOnClickListener {
+            SmileBanner.make(this)
+                .type(BannerType.INFO)
+                .message(getString(R.string.banner_vibrate_msg))
+                .position(BannerPosition.TOP)
+                .vibrate(VibrationDuration.SHORT)
+                .duration(2000L)
+                .show()
+        }
+
+        // Medium vibration (100ms)
+        findViewById<MaterialButton>(R.id.btnVibrateMedium).setOnClickListener {
+            SmileBanner.make(this)
+                .type(BannerType.INFO)
+                .message(getString(R.string.banner_vibrate_msg))
+                .position(BannerPosition.TOP)
+                .vibrate(VibrationDuration.MEDIUM)
+                .duration(2000L)
+                .show()
+        }
+
+        // Long vibration (200ms)
+        findViewById<MaterialButton>(R.id.btnVibrateLong).setOnClickListener {
+            SmileBanner.make(this)
+                .type(BannerType.INFO)
+                .message(getString(R.string.banner_vibrate_msg))
+                .position(BannerPosition.TOP)
+                .vibrate(VibrationDuration.LONG)
+                .duration(2000L)
+                .show()
+        }
+    }
+
+    private fun setupSingletonButtons() {
+        // Test rapid banners to demonstrate singleton behavior
+        findViewById<MaterialButton>(R.id.btnRapidBanners).setOnClickListener {
+            // Simulate multiple notifications arriving in quick succession
+            // Only the last one should be visible
+            CoroutineScope(Dispatchers.Main).launch {
+                SmileBanner.make(this@MainActivity)
+                    .type(BannerType.INFO)
+                    .message(getString(R.string.banner_message_1))
+                    .position(BannerPosition.TOP)
+                    .vibrate()
+                    .duration(3000L)
+                    .show()
+
+                delay(300) // Simulate message arriving 300ms later
+
+                SmileBanner.make(this@MainActivity)
+                    .type(BannerType.INFO)
+                    .message(getString(R.string.banner_message_2))
+                    .position(BannerPosition.TOP)
+                    .vibrate()
+                    .duration(3000L)
+                    .show()
+
+                delay(300)
+
+                SmileBanner.make(this@MainActivity)
+                    .type(BannerType.INFO)
+                    .message(getString(R.string.banner_message_3))
+                    .position(BannerPosition.TOP)
+                    .vibrate()
+                    .duration(3000L)
+                    .show()
+
+                delay(300)
+
+                SmileBanner.make(this@MainActivity)
+                    .type(BannerType.SUCCESS)
+                    .message(getString(R.string.banner_message_4))
+                    .position(BannerPosition.TOP)
+                    .vibrate()
+                    .duration(3000L)
+                    .show()
+            }
         }
     }
 }

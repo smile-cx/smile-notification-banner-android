@@ -25,4 +25,17 @@
     <string name="banner_auto_msg">This banner will auto-dismiss in 3 seconds</string>
     <string name="banner_custom_msg">This banner has custom styling</string>
     <string name="banner_click_msg">Tap this banner for more info</string>
+
+    <string name="title_vibration">Vibration (v2.0)</string>
+    <string name="btn_vibrate_short">Short Vibration (50ms)</string>
+    <string name="btn_vibrate_medium">Medium Vibration (100ms)</string>
+    <string name="btn_vibrate_long">Long Vibration (200ms)</string>
+    <string name="banner_vibrate_msg">Banner with vibration feedback</string>
+
+    <string name="title_singleton">Singleton Banner (v2.0)</string>
+    <string name="btn_rapid_banners">Rapid Banners (Test Singleton)</string>
+    <string name="banner_message_1">New message from Alice</string>
+    <string name="banner_message_2">New message from Bob</string>
+    <string name="banner_message_3">New message from Charlie</string>
+    <string name="banner_message_4">New message from Diana</string>
 </resources>
