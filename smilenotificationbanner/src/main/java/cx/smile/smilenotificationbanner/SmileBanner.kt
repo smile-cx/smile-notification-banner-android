@@ -287,25 +287,7 @@ class SmileBanner private constructor(
                 container.paddingRight,
                 container.paddingBottom
             )
-
-            // Calculate and set minimum height on the card to cover both status bar and action bar
-            // Total coverage needed = topInset + actionBarHeight
-            val actionBarHeight = getActionBarHeight()
-            val totalMinHeight = topInset + actionBarHeight
-            card.minimumHeight = totalMinHeight
         }
-    }
-
-    /**
-     * Get the action bar height from theme
-     */
-    private fun getActionBarHeight(): Int {
-        val styledAttributes = activity.theme.obtainStyledAttributes(
-            intArrayOf(android.R.attr.actionBarSize)
-        )
-        val actionBarHeight = styledAttributes.getDimension(0, 0f).toInt()
-        styledAttributes.recycle()
-        return actionBarHeight
     }
 
     /**
