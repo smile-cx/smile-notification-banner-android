@@ -39,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ViewBinding support
 - Internal configuration class (BannerConfig) to keep public API simple
 - Minimum SDK: API 21 (Android 5.0)
-- Target SDK: API 34 (Android 14)
+- Target SDK: API 36 (Android 15)
 
 ### API Design
 - Clean single-entry API: `SmileBanner.make(activity)` returns a builder

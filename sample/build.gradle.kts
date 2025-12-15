@@ -5,12 +5,12 @@ plugins {
 
 android {
     namespace = "cx.smile.smilenotificationbanner.sample"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "cx.smile.smilenotificationbanner.sample"
         minSdk = 21
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 

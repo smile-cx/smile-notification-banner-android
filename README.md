@@ -18,7 +18,7 @@ A modern, customizable in-app notification banner library for Android, built wit
 ## Requirements
 
 - **Minimum SDK**: API 21 (Android 5.0 Lollipop)
-- **Target SDK**: API 34 (Android 14)
+- **Target SDK**: API 36 (Android 15)
 - **Language**: Kotlin 1.9.20+ or Java 11+
 
 ## Installation

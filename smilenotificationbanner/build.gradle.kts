@@ -5,11 +5,11 @@ plugins {
 
 android {
     namespace = "cx.smile.smilenotificationbanner"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 21
-        targetSdk = 34
+        targetSdk = 36
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")

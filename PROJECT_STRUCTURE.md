@@ -168,7 +168,7 @@ When you build the project:
 
 - **Package**: `cx.smile.smilenotificationbanner`
 - **Min SDK**: 21 (Android 5.0 Lollipop)
-- **Target SDK**: 34 (Android 14)
+- **Target SDK**: 36 (Android 15)
 - **Kotlin**: 1.9.20
 - **Gradle**: 8.2
 - **License**: MIT
