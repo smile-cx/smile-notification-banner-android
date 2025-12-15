@@ -72,7 +72,7 @@ afterEvaluate {
                 from(components["release"])
                 groupId = "cx.smile"
                 artifactId = "smilenotificationbanner"
-                // Version is set by JitPack from the git tag
+                version = rootProject.extra["libraryVersion"] as String
             }
         }
     }

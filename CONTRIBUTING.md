@@ -58,20 +58,30 @@ Before submitting a PR:
 
 When creating a new release:
 
-1. Update the version in `build.gradle.kts` files
+1. Update the `libraryVersion` variable at the top of the root `build.gradle.kts` file
 2. Update CHANGELOG.md with the new version and changes
-3. Commit the changes
-4. Create a git tag **without** the "v" prefix:
+3. Commit the changes:
    ```bash
-   # Correct
+   git commit -m "Release X.Y.Z"
+   ```
+4. Create a git tag **without** the "v" prefix (must match the version in build.gradle.kts):
+   ```bash
+   # Correct - matches libraryVersion in build.gradle.kts
    git tag -a 1.0.0 -m "Release 1.0.0"
 
    # Incorrect (do not use "v" prefix)
    git tag -a v1.0.0 -m "Release 1.0.0"
    ```
-5. Push the tag: `git push origin 1.0.0`
+5. Push the commit and tag:
+   ```bash
+   git push origin main
+   git push origin 1.0.0
+   ```
 
-**Important:** Tags must NOT include the "v" prefix for JitPack compatibility. Use `1.0.0`, not `v1.0.0`.
+**Important Notes:**
+- Tags must NOT include the "v" prefix for JitPack compatibility. Use `1.0.0`, not `v1.0.0`.
+- The git tag version must match the `libraryVersion` in `build.gradle.kts`.
+- Update the version in only ONE place: the root `build.gradle.kts` file.
 
 ## Code of Conduct
 
