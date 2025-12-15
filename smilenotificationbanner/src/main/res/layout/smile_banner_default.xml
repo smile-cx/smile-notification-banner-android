@@ -14,7 +14,6 @@
         android:id="@+id/bannerContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="100dp"
         android:padding="@dimen/smile_banner_padding">
 
         <!-- Left View Container (for custom views or images) -->

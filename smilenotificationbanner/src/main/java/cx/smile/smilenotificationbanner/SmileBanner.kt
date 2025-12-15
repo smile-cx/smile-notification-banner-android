@@ -240,6 +240,7 @@ class SmileBanner private constructor(
     /**
      * Apply padding to banner container to account for system bars and display cutout
      * This ensures content doesn't overlap with status bar or camera cutout
+     * Also sets minimum height to cover action bar
      */
     private fun applySystemBarPadding() {
         val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
@@ -293,7 +294,24 @@ class SmileBanner private constructor(
                 container.paddingRight,
                 container.paddingBottom
             )
+
+            // Calculate and set minimum height to cover action bar
+            val actionBarHeight = getActionBarHeight()
+            val minHeight = topInset + actionBarHeight
+            container.minimumHeight = minHeight
         }
+    }
+
+    /**
+     * Get the action bar height from theme
+     */
+    private fun getActionBarHeight(): Int {
+        val styledAttributes = activity.theme.obtainStyledAttributes(
+            intArrayOf(android.R.attr.actionBarSize)
+        )
+        val actionBarHeight = styledAttributes.getDimension(0, 0f).toInt()
+        styledAttributes.recycle()
+        return actionBarHeight
     }
 
     /**
