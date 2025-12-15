@@ -1,5 +1,10 @@
 # SmileNotificationBanner
 
+[![JitPack](https://jitpack.io/v/smile-cx/smile-notification-banner-android.svg)](https://jitpack.io/#smile-cx/smile-notification-banner-android)
+[![API](https://img.shields.io/badge/API-21%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=21)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Kotlin](https://img.shields.io/badge/Kotlin-1.9.20-purple.svg)](https://kotlinlang.org)
+
 A modern, customizable in-app notification banner library for Android, built with Kotlin and compatible with Java.
 
 ## Features
@@ -25,31 +30,79 @@ A modern, customizable in-app notification banner library for Android, built wit
 
 ## Installation
 
-### Gradle
+### Step 1: Add JitPack Repository
 
-Add the library to your module's `build.gradle` or `build.gradle.kts`:
+Add the JitPack repository to your root `settings.gradle.kts` (or `settings.gradle`):
 
-```gradle
+**Kotlin DSL (settings.gradle.kts):**
+```kotlin
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+```
+
+**Groovy (settings.gradle):**
+```groovy
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+
+Or in your root `build.gradle` / `build.gradle.kts`:
+
+**Kotlin DSL:**
+```kotlin
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url = uri("https://jitpack.io") }
+    }
+}
+```
+
+**Groovy:**
+```groovy
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+
+### Step 2: Add the Dependency
+
+Add the library to your module's `build.gradle.kts` (or `build.gradle`):
+
+**Kotlin DSL (build.gradle.kts):**
+```kotlin
 dependencies {
-    implementation project(':smilenotificationbanner')
+    implementation("com.github.smile-cx:smile-notification-banner-android:1.0.0")
 }
 ```
 
-For JitPack distribution (coming soon):
-
-```gradle
+**Groovy (build.gradle):**
+```groovy
 dependencies {
-    implementation 'com.github.yourusername:SmileNotificationBanner:1.0.0'
+    implementation 'com.github.smile-cx:smile-notification-banner-android:1.0.0'
 }
 ```
 
-Add JitPack repository in your root `build.gradle` or `settings.gradle`:
+### Step 3: Sync Project
 
-```gradle
-repositories {
-    maven { url 'https://jitpack.io' }
-}
-```
+Sync your project with Gradle files and start using SmileBanner!
 
 ## Quick Start
 
