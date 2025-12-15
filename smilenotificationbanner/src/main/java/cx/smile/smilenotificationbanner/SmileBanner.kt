@@ -788,12 +788,6 @@ class SmileBanner private constructor(
                     // Calculate insets for Android 15+ edge-to-edge support
                     val (xOffset, yOffset) = calculateInsets(rootView)
 
-                    // For TOP banners, adjust initial position to account for status bar
-                    // This ensures the XML animation starts from above the visible screen
-                    if (config.position == BannerPosition.TOP) {
-                        adjustInitialPositionForAnimation(rootView)
-                    }
-
                     showAtLocation(rootView, gravity, xOffset, yOffset)
 
                     // Apply system bar padding after popup is shown
