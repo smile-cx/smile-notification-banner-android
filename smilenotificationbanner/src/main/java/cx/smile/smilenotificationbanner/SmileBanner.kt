@@ -226,14 +226,7 @@ class SmileBanner private constructor(
             configurDefaultBanner()
         }
 
-        // Set click listener on the banner
-        config.onBannerClick?.let { clickListener ->
-            bannerView?.setOnClickListener { view ->
-                clickListener.invoke(view)
-            }
-        }
-
-        // Setup swipe-to-dismiss gesture
+        // Setup swipe-to-dismiss gesture (also handles banner clicks)
         setupSwipeToDismiss()
     }
 
@@ -677,23 +670,39 @@ class SmileBanner private constructor(
         val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
         val container = bannerView?.findViewById<ViewGroup>(R.id.bannerContainer) ?: return
         var initialY = 0f
+        var initialX = 0f
         var initialTranslationY = 0f
         var isDragging = false
+        var touchStartedOnInteractiveView = false
 
         container.setOnTouchListener { view, event ->
             when (event.action) {
                 android.view.MotionEvent.ACTION_DOWN -> {
                     initialY = event.rawY
+                    initialX = event.rawX
                     initialTranslationY = card.translationY
                     isDragging = false
-                    false // Allow other touch listeners to handle the event
+
+                    // Check if touch started on an interactive child view
+                    val touchedView = findViewAt(container, event.x, event.y)
+                    touchStartedOnInteractiveView = touchedView is android.widget.EditText ||
+                            touchedView is android.widget.Button
+
+                    // Don't consume if on interactive view, let it handle the touch
+                    touchStartedOnInteractiveView.not()
                 }
                 android.view.MotionEvent.ACTION_MOVE -> {
-                    val deltaY = event.rawY - initialY
-                    val absDeltaY = kotlin.math.abs(deltaY)
+                    if (touchStartedOnInteractiveView) {
+                        return@setOnTouchListener false
+                    }
 
-                    // Start dragging if moved more than 10 pixels
-                    if (absDeltaY > 10) {
+                    val deltaY = event.rawY - initialY
+                    val deltaX = event.rawX - initialX
+                    val absDeltaY = kotlin.math.abs(deltaY)
+                    val absDeltaX = kotlin.math.abs(deltaX)
+
+                    // Start dragging if moved vertically more than 20 pixels and vertical movement > horizontal
+                    if (absDeltaY > 20 && absDeltaY > absDeltaX) {
                         isDragging = true
                     }
 
@@ -703,20 +712,25 @@ class SmileBanner private constructor(
                                 // Allow only upward swipes (negative deltaY)
                                 if (deltaY < 0) {
                                     card.translationY = initialTranslationY + deltaY
-                                    true // Consume the event
-                                } else false
+                                }
                             }
                             BannerPosition.BOTTOM -> {
                                 // Allow only downward swipes (positive deltaY)
                                 if (deltaY > 0) {
                                     card.translationY = initialTranslationY + deltaY
-                                    true // Consume the event
-                                } else false
+                                }
                             }
                         }
-                    } else false
+                        true
+                    } else {
+                        false
+                    }
                 }
                 android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    if (touchStartedOnInteractiveView) {
+                        return@setOnTouchListener false
+                    }
+
                     if (isDragging) {
                         val deltaY = event.rawY - initialY
                         val threshold = 100 // pixels to trigger dismiss
@@ -747,12 +761,45 @@ class SmileBanner private constructor(
                                 .setDuration(200)
                                 .start()
                         }
+                        isDragging = false
                         true
-                    } else false
+                    } else {
+                        // Not dragging, treat as a click
+                        config.onBannerClick?.invoke(container)
+                        false // Let other views handle it too
+                    }
                 }
                 else -> false
             }
         }
+    }
+
+    /**
+     * Find the view at the given coordinates
+     */
+    private fun findViewAt(parent: ViewGroup, x: Float, y: Float): View? {
+        for (i in parent.childCount - 1 downTo 0) {
+            val child = parent.getChildAt(i)
+            if (child.visibility == View.VISIBLE) {
+                val location = IntArray(2)
+                child.getLocationInWindow(location)
+                val parentLocation = IntArray(2)
+                parent.getLocationInWindow(parentLocation)
+
+                val childX = location[0] - parentLocation[0]
+                val childY = location[1] - parentLocation[1]
+
+                if (x >= childX && x <= childX + child.width &&
+                    y >= childY && y <= childY + child.height) {
+                    if (child is ViewGroup) {
+                        val nestedView = findViewAt(child, x - childX, y - childY)
+                        if (nestedView != null) return nestedView
+                    }
+                    return child
+                }
+            }
+        }
+        return null
     }
 
     @ColorInt
