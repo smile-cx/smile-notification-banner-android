@@ -1,0 +1,7 @@
+# This file contains local properties for building the project.
+# Copy this file to local.properties and update with your Android SDK path.
+
+# Location of the Android SDK
+# Example:
+# sdk.dir=/Users/username/Library/Android/sdk
+sdk.dir=

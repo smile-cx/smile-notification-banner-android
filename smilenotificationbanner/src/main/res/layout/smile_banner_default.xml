@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/bannerCard"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="@dimen/smile_banner_margin"
+    app:cardCornerRadius="@dimen/smile_banner_corner_radius"
+    app:cardElevation="@dimen/smile_banner_elevation"
+    app:cardBackgroundColor="@color/smile_banner_info">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/bannerContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="@dimen/smile_banner_padding">
+
+        <ImageView
+            android:id="@+id/bannerIcon"
+            android:layout_width="@dimen/smile_banner_icon_size"
+            android:layout_height="@dimen/smile_banner_icon_size"
+            android:src="@drawable/smile_banner_icon_info"
+            android:contentDescription="@string/smile_banner_info_default"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:tint="@color/smile_banner_text" />
+
+        <TextView
+            android:id="@+id/bannerMessage"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/smile_banner_padding"
+            android:layout_marginEnd="@dimen/smile_banner_padding_small"
+            android:text="@string/smile_banner_info_default"
+            android:textColor="@color/smile_banner_text"
+            android:textSize="@dimen/smile_banner_text_size"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/bannerClose"
+            app:layout_constraintStart_toEndOf="@id/bannerIcon"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <ImageView
+            android:id="@+id/bannerClose"
+            android:layout_width="@dimen/smile_banner_close_icon_size"
+            android:layout_height="@dimen/smile_banner_close_icon_size"
+            android:src="@drawable/smile_banner_close"
+            android:contentDescription="@string/smile_banner_dismiss"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:padding="4dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:tint="@color/smile_banner_text" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</androidx.cardview.widget.CardView>

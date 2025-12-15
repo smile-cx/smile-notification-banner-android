@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Banner colors -->
+    <color name="smile_banner_success">#4CAF50</color>
+    <color name="smile_banner_info">#2196F3</color>
+    <color name="smile_banner_warning">#FF9800</color>
+    <color name="smile_banner_error">#F44336</color>
+
+    <!-- Text colors -->
+    <color name="smile_banner_text">#FFFFFF</color>
+    <color name="smile_banner_text_dark">#000000</color>
+
+    <!-- Background colors -->
+    <color name="smile_banner_background_light">#F5F5F5</color>
+    <color name="smile_banner_background_dark">#212121</color>
+</resources>

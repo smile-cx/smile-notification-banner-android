@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="smile_banner_dismiss">Dismiss</string>
+    <string name="smile_banner_success_default">Success!</string>
+    <string name="smile_banner_info_default">Information</string>
+    <string name="smile_banner_warning_default">Warning!</string>
+    <string name="smile_banner_error_default">Error!</string>
+</resources>

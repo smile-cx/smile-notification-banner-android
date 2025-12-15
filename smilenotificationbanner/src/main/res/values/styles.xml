@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="SmileBannerAnimationTop" parent="android:Animation">
+        <item name="android:windowEnterAnimation">@anim/smile_banner_slide_in_top</item>
+        <item name="android:windowExitAnimation">@anim/smile_banner_slide_out_top</item>
+    </style>
+
+    <style name="SmileBannerAnimationBottom" parent="android:Animation">
+        <item name="android:windowEnterAnimation">@anim/smile_banner_slide_in_bottom</item>
+        <item name="android:windowExitAnimation">@anim/smile_banner_slide_out_bottom</item>
+    </style>
+</resources>

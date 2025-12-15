@@ -1,0 +1,407 @@
+# SmileNotificationBanner
+
+A modern, customizable in-app notification banner library for Android, built with Kotlin and compatible with Java.
+
+## Features
+
+- **Multiple Banner Types**: Success, Info, Warning, Error, and Custom
+- **Flexible Positioning**: Display banners at the top or bottom of the screen
+- **Smooth Animations**: Beautiful slide-in/slide-out animations
+- **Auto-Dismiss**: Configure banners to automatically dismiss after a specified duration
+- **Fully Customizable**: Customize colors, icons, layouts, and more
+- **Click Listeners**: Handle banner and dismiss events
+- **Modern Architecture**: Built with Kotlin Coroutines and AndroidX
+- **Java Compatible**: Full interoperability with Java projects
+- **Lifecycle Aware**: Properly handles activity lifecycle
+- **Backward Compatible**: Supports Android API 21+ (Android 5.0 Lollipop)
+
+## Requirements
+
+- **Minimum SDK**: API 21 (Android 5.0 Lollipop)
+- **Target SDK**: API 34 (Android 14)
+- **Language**: Kotlin 1.9.20+ or Java 11+
+
+## Installation
+
+### Gradle
+
+Add the library to your module's `build.gradle` or `build.gradle.kts`:
+
+```gradle
+dependencies {
+    implementation project(':smilenotificationbanner')
+}
+```
+
+For JitPack distribution (coming soon):
+
+```gradle
+dependencies {
+    implementation 'com.github.yourusername:SmileNotificationBanner:1.0.0'
+}
+```
+
+Add JitPack repository in your root `build.gradle` or `settings.gradle`:
+
+```gradle
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+```
+
+## Quick Start
+
+### Simple Usage
+
+Show a banner with just one line:
+
+**Kotlin:**
+```kotlin
+import cx.smile.smilenotificationbanner.SmileBanner
+import cx.smile.smilenotificationbanner.BannerType
+
+SmileBanner.show(this, BannerType.SUCCESS, "Operation completed successfully!")
+```
+
+**Java:**
+```java
+import cx.smile.smilenotificationbanner.SmileBanner;
+import cx.smile.smilenotificationbanner.BannerType;
+
+SmileBanner.show(this, BannerType.SUCCESS, "Operation completed successfully!");
+```
+
+### Banner Types
+
+The library provides four pre-styled banner types:
+
+```kotlin
+import cx.smile.smilenotificationbanner.*
+
+// Success banner (green)
+SmileBanner.show(this, BannerType.SUCCESS, "Success message", BannerPosition.TOP)
+
+// Info banner (blue)
+SmileBanner.show(this, BannerType.INFO, "Info message", BannerPosition.TOP)
+
+// Warning banner (orange)
+SmileBanner.show(this, BannerType.WARNING, "Warning message", BannerPosition.TOP)
+
+// Error banner (red)
+SmileBanner.show(this, BannerType.ERROR, "Error message", BannerPosition.TOP)
+```
+
+### Positioning
+
+Display banners at the top or bottom:
+
+```kotlin
+// Show at top
+SmileBanner.show(this, BannerType.INFO, "Top banner", BannerPosition.TOP)
+
+// Show at bottom
+SmileBanner.show(this, BannerType.INFO, "Bottom banner", BannerPosition.BOTTOM)
+```
+
+### Auto-Dismiss
+
+Configure banners to automatically dismiss:
+
+```kotlin
+// Auto-dismiss after 3 seconds (3000 milliseconds)
+SmileBanner.show(
+    this,
+    BannerType.INFO,
+    "This will auto-dismiss",
+    BannerPosition.TOP,
+    3000L
+)
+```
+
+## Advanced Usage
+
+### Chainable Builder API
+
+Configure banners using the fluent builder pattern:
+
+**Kotlin:**
+```kotlin
+SmileBanner.make(this)
+    .type(BannerType.CUSTOM)
+    .message("Custom styled banner")
+    .position(BannerPosition.TOP)
+    .duration(5000L)
+    .backgroundColor(Color.parseColor("#9C27B0"))
+    .textColor(Color.WHITE)
+    .dismissible(true)
+    .show()
+```
+
+**Java:**
+```java
+SmileBanner.make(this)
+    .type(BannerType.CUSTOM)
+    .message("Custom styled banner")
+    .position(BannerPosition.TOP)
+    .duration(5000L)
+    .backgroundColor(Color.parseColor("#9C27B0"))
+    .textColor(Color.WHITE)
+    .dismissible(true)
+    .show();
+```
+
+### Click Listeners
+
+Handle banner clicks and dismiss events:
+
+```kotlin
+SmileBanner.make(this)
+    .type(BannerType.INFO)
+    .message("Tap for more info")
+    .position(BannerPosition.TOP)
+    .onBannerClick { view ->
+        // Handle banner click
+        Toast.makeText(this, "Banner clicked!", Toast.LENGTH_SHORT).show()
+        SmileBanner.dismissCurrent()
+    }
+    .onDismiss {
+        // Handle dismiss event
+        Log.d("SmileBanner", "Banner dismissed")
+    }
+    .show()
+```
+
+### Using Resource IDs
+
+The library supports both direct values and resource IDs for strings and colors:
+
+**String Resources:**
+```kotlin
+// Using string resource ID
+SmileBanner.make(this)
+    .type(BannerType.SUCCESS)
+    .message(R.string.my_success_message) // Resource ID
+    .show()
+
+// Or using string directly
+SmileBanner.make(this)
+    .type(BannerType.SUCCESS)
+    .message("Success message") // Direct string
+    .show()
+```
+
+**Color Resources:**
+```kotlin
+// Using color resource ID
+SmileBanner.make(this)
+    .type(BannerType.CUSTOM)
+    .message("Custom colors")
+    .backgroundColorRes(R.color.my_banner_background) // Resource ID
+    .textColorRes(R.color.my_banner_text) // Resource ID
+    .show()
+
+// Or using color int directly
+SmileBanner.make(this)
+    .type(BannerType.CUSTOM)
+    .message("Custom colors")
+    .backgroundColor(Color.parseColor("#9C27B0")) // Direct color
+    .textColor(Color.WHITE) // Direct color
+    .show()
+```
+
+### Custom Icons
+
+Use your own icons:
+
+```kotlin
+SmileBanner.make(this)
+    .type(BannerType.CUSTOM)
+    .message("Custom icon banner")
+    .icon(R.drawable.my_custom_icon)
+    .show()
+```
+
+### Custom Layouts
+
+Create completely custom banner layouts:
+
+1. Create your custom layout XML:
+
+```xml
+<!-- res/layout/my_custom_banner.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp"
+    android:background="#FF5722">
+
+    <TextView
+        android:id="@+id/customMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/white" />
+</LinearLayout>
+```
+
+2. Use it in your code:
+
+```kotlin
+// Build the banner first
+val banner = SmileBanner.make(this)
+    .type(BannerType.CUSTOM)
+    .message("") // Message not used with custom layout
+    .customLayout(R.layout.my_custom_banner)
+    .build() // Use build() instead of show() to get the banner instance
+
+// Access and customize your custom views before showing
+banner.getBannerView()?.findViewById<TextView>(R.id.customMessage)?.apply {
+    text = "This is my custom banner!"
+}
+
+// Now show it
+banner.show()
+```
+
+### Programmatic Dismiss
+
+Dismiss the currently showing banner:
+
+```kotlin
+SmileBanner.dismissCurrent()
+```
+
+### Configuration Options
+
+| Method | Parameter Type | Description |
+|--------|----------------|-------------|
+| `type()` | `BannerType` | Banner type (SUCCESS, INFO, WARNING, ERROR, CUSTOM) |
+| `message()` | `String` or `@StringRes Int` | Message to display (supports both string and resource ID) |
+| `position()` | `BannerPosition` | Banner position (TOP or BOTTOM) |
+| `duration()` | `Long` | Auto-dismiss duration in ms (0 = no auto-dismiss) |
+| `dismissible()` | `Boolean` | Show/hide close button (default: true) |
+| `customLayout()` | `@LayoutRes Int` | Custom layout resource ID |
+| `backgroundColor()` | `@ColorInt Int` | Custom background color (direct color value) |
+| `backgroundColorRes()` | `@ColorRes Int` | Custom background color (color resource ID) |
+| `textColor()` | `@ColorInt Int` | Custom text color (direct color value) |
+| `textColorRes()` | `@ColorRes Int` | Custom text color (color resource ID) |
+| `icon()` | `@DrawableRes Int` | Custom icon resource ID |
+| `onBannerClick()` | `(View) -> Unit` | Click listener for banner |
+| `onDismiss()` | `() -> Unit` | Callback when banner is dismissed |
+| `show()` | - | Build and immediately display the banner |
+| `build()` | - | Build the banner without showing (for custom view access) |
+
+## Sample App
+
+The project includes a complete sample app in the `sample` module that demonstrates all library features:
+
+- All banner types (Success, Info, Warning, Error)
+- Top and bottom positioning
+- Auto-dismiss functionality
+- Custom colors and styling
+- Click listeners and callbacks
+
+### Running the Sample App
+
+```bash
+# Install on connected device/emulator
+./gradlew :sample:installDebug
+
+# Or open the project in Android Studio and run the 'sample' module
+```
+
+The sample app provides interactive buttons to test each feature.
+
+## Testing
+
+The library includes comprehensive unit and instrumented tests:
+
+### Running Tests
+
+```bash
+# Run all tests
+./run-tests.sh
+
+# Or run individually:
+./gradlew :smilenotificationbanner:test                    # Unit tests
+./gradlew :smilenotificationbanner:connectedAndroidTest   # Instrumented tests
+```
+
+### Test Coverage
+
+- **Unit Tests**: Test business logic, builder pattern, configuration
+  - `BannerTypeTest`: Enum tests
+  - `BannerPositionTest`: Position enum tests
+  - `BannerBuilderTest`: Builder pattern and chaining
+  - `BannerConfigTest`: Configuration data class
+  - `SmileBannerTest`: Core functionality
+
+- **Instrumented Tests**: Test Android-specific functionality
+  - `SmileBannerInstrumentedTest`: Real device tests
+
+Test reports are generated in:
+- `smilenotificationbanner/build/reports/tests/`
+- `smilenotificationbanner/build/reports/androidTests/`
+
+## Architecture
+
+SmileNotificationBanner is built with modern Android development practices:
+
+- **Kotlin**: Written in Kotlin with full Java interoperability
+- **AndroidX**: Uses modern AndroidX libraries
+- **Material Design**: Follows Material Design 3 guidelines
+- **Coroutines**: Uses Kotlin Coroutines for asynchronous operations
+- **ViewBinding**: Supports ViewBinding for type-safe view access
+- **Lifecycle Aware**: Properly handles activity lifecycle to prevent crashes
+
+## Default Styles
+
+The library comes with pre-styled banner types:
+
+| Type | Background Color | Icon |
+|------|------------------|------|
+| SUCCESS | Green (#4CAF50) | Check mark |
+| INFO | Blue (#2196F3) | Info circle |
+| WARNING | Orange (#FF9800) | Warning triangle |
+| ERROR | Red (#F44336) | Error circle |
+
+All colors and icons are customizable.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+```
+MIT License
+
+Copyright (c) 2025 SmileNotificationBanner Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## Acknowledgments
+
+Inspired by the concept of [NotificationBanner](https://github.com/shasin89/NotificationBanner) by Shasindran Poonudurai, but completely reimplemented with modern Android practices.
+
+## Support
+
+If you find this library helpful, please star the repository!
+
+For issues, feature requests, or questions, please open an issue on GitHub.
