@@ -44,6 +44,7 @@ class SmileBanner private constructor(
     private var autoDismissJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Main)
     private var isExpanded = false
+    private var originalStatusBarColor: Int? = null
 
     companion object {
         @Volatile
@@ -162,6 +163,7 @@ class SmileBanner private constructor(
         activity.runOnUiThread {
             try {
                 setupBannerView()
+                applyStatusBarColor()
                 showPopupWindow()
                 setupAutoDismiss()
                 performVibration()
@@ -176,6 +178,7 @@ class SmileBanner private constructor(
      */
     fun dismiss() {
         autoDismissJob?.cancel()
+        restoreStatusBarColor()
         popupWindow?.dismiss()
         popupWindow = null
         bannerView = null
@@ -285,6 +288,41 @@ class SmileBanner private constructor(
                 container.paddingRight,
                 container.paddingBottom
             )
+        }
+    }
+
+    /**
+     * Apply banner background color to status bar for TOP positioned banners
+     */
+    private fun applyStatusBarColor() {
+        if (config.position != BannerPosition.TOP) return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            val window = activity.window
+
+            // Save original color to restore later
+            originalStatusBarColor = window.statusBarColor
+
+            // Get banner background color
+            val backgroundColor = when {
+                config.backgroundColor != null -> config.backgroundColor
+                config.backgroundColorRes != null -> ContextCompat.getColor(activity, config.backgroundColorRes)
+                else -> getDefaultBackgroundColor()
+            }
+
+            // Set status bar color to match banner
+            window.statusBarColor = backgroundColor
+        }
+    }
+
+    /**
+     * Restore original status bar color
+     */
+    private fun restoreStatusBarColor() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            originalStatusBarColor?.let {
+                activity.window.statusBarColor = it
+            }
         }
     }
 
@@ -487,7 +525,6 @@ class SmileBanner private constructor(
         if (dragIndicator == null || expandableContent == null) return
 
         var initialY = 0f
-        var isExpanded = false
 
         dragIndicator.setOnTouchListener { view, event ->
             when (event.action) {
@@ -500,7 +537,6 @@ class SmileBanner private constructor(
                     if (deltaY > 50 && !isExpanded) {
                         // Dragged down enough, expand
                         expandExpandable(expandableContent)
-                        isExpanded = true
                     }
                     true
                 }
