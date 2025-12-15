@@ -236,21 +236,6 @@ class SmileBanner private constructor(
             }
         }
 
-        // Setup close button
-        val closeButton = bannerView?.findViewById<ImageView>(R.id.bannerClose)
-        if (config.dismissible) {
-            closeButton?.setOnClickListener {
-                dismiss()
-            }
-        } else {
-            closeButton?.visibility = View.GONE
-        }
-
-        // Hide close button if auto-dismiss is enabled
-        if (config.duration > 0) {
-            closeButton?.visibility = View.GONE
-        }
-
         // Setup swipe-to-dismiss gesture
         setupSwipeToDismiss()
     }
@@ -419,10 +404,6 @@ class SmileBanner private constructor(
 
         // Setup right side (priority: rightView > rightImageUrl > rightImage)
         setupRightSide(rightContainer)
-
-        // Set tint for close button
-        val closeButton = bannerView?.findViewById<ImageView>(R.id.bannerClose)
-        closeButton?.setColorFilter(textColor)
 
         // Setup expandable feature if enabled
         setupExpandable(textColor)
@@ -767,6 +748,11 @@ class SmileBanner private constructor(
             animationStyle = when (config.position) {
                 BannerPosition.TOP -> R.style.SmileBannerAnimationTop
                 BannerPosition.BOTTOM -> R.style.SmileBannerAnimationBottom
+            }
+
+            // Allow popup to draw outside of screen bounds (over status bar)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP_MR1) {
+                isClippingEnabled = false
             }
 
             // Get the root view of the activity
