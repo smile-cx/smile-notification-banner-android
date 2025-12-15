@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/bannerCard"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -15,30 +16,72 @@
         android:layout_height="wrap_content"
         android:padding="@dimen/smile_banner_padding">
 
-        <ImageView
-            android:id="@+id/bannerIcon"
+        <!-- Left View Container (for custom views or images) -->
+        <FrameLayout
+            android:id="@+id/bannerLeftContainer"
             android:layout_width="@dimen/smile_banner_icon_size"
             android:layout_height="@dimen/smile_banner_icon_size"
-            android:src="@drawable/smile_banner_icon_info"
-            android:contentDescription="@string/smile_banner_info_default"
+            android:visibility="gone"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:tint="@color/smile_banner_text" />
+            tools:visibility="visible">
 
-        <TextView
-            android:id="@+id/bannerMessage"
+            <!-- Default icon (will be used if no custom view/image is set) -->
+            <ImageView
+                android:id="@+id/bannerIcon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/smile_banner_icon_info"
+                android:contentDescription="@string/smile_banner_info_default"
+                app:tint="@color/smile_banner_text" />
+        </FrameLayout>
+
+        <!-- Content area (title + message) -->
+        <LinearLayout
+            android:id="@+id/bannerContentArea"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/smile_banner_padding"
             android:layout_marginEnd="@dimen/smile_banner_padding_small"
-            android:text="@string/smile_banner_info_default"
-            android:textColor="@color/smile_banner_text"
-            android:textSize="@dimen/smile_banner_text_size"
+            android:orientation="vertical"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/bannerRightContainer"
+            app:layout_constraintStart_toEndOf="@id/bannerLeftContainer"
+            app:layout_constraintTop_toTopOf="parent">
+
+            <TextView
+                android:id="@+id/bannerTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="@color/smile_banner_text"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:text="Hi, i'am in app notification! 😁"
+                tools:visibility="visible" />
+
+            <TextView
+                android:id="@+id/bannerMessage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/smile_banner_info_default"
+                android:textColor="@color/smile_banner_text"
+                android:textSize="@dimen/smile_banner_text_size"
+                tools:text="Use me in your app, that's fun!" />
+        </LinearLayout>
+
+        <!-- Right View Container (for custom views or images) -->
+        <FrameLayout
+            android:id="@+id/bannerRightContainer"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/smile_banner_padding_small"
+            android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/bannerClose"
-            app:layout_constraintStart_toEndOf="@id/bannerIcon"
-            app:layout_constraintTop_toTopOf="parent" />
+            app:layout_constraintTop_toTopOf="parent"
+            tools:visibility="visible" />
 
         <ImageView
             android:id="@+id/bannerClose"
@@ -50,8 +93,57 @@
             android:padding="4dp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintBottom_toBottomOf="@id/bannerContentArea"
             app:tint="@color/smile_banner_text" />
+
+        <!-- Drag indicator (only visible when expandable is enabled) -->
+        <View
+            android:id="@+id/bannerDragIndicator"
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:layout_marginTop="8dp"
+            android:background="@color/smile_banner_text"
+            android:alpha="0.3"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/bannerContentArea"
+            tools:visibility="visible" />
+
+        <!-- Expandable content (input + button) -->
+        <LinearLayout
+            android:id="@+id/bannerExpandableContent"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/bannerDragIndicator"
+            tools:visibility="visible">
+
+            <EditText
+                android:id="@+id/bannerExpandableInput"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:hint="Type a reply..."
+                android:inputType="text"
+                android:maxLines="3"
+                android:textColor="@color/smile_banner_text"
+                android:textColorHint="@color/smile_banner_text"
+                android:backgroundTint="@color/smile_banner_text" />
+
+            <Button
+                android:id="@+id/bannerExpandableButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Send"
+                android:textSize="14sp"
+                style="@style/Widget.MaterialComponents.Button.TextButton" />
+        </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

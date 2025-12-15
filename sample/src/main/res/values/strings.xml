@@ -38,4 +38,17 @@
     <string name="banner_message_2">New message from Bob</string>
     <string name="banner_message_3">New message from Charlie</string>
     <string name="banner_message_4">New message from Diana</string>
+
+    <string name="title_enhanced_layout">Enhanced Layout (v2.1)</string>
+    <string name="btn_with_title">Banner with Title</string>
+    <string name="btn_with_left_image">Banner with Left Image</string>
+    <string name="btn_with_right_image">Banner with Right Image</string>
+    <string name="btn_with_custom_view">Banner with Custom View</string>
+    <string name="banner_title_example">Important Notification!</string>
+    <string name="banner_subtitle_example">This banner has both title and message</string>
+
+    <string name="title_expandable">Expandable Quick Reply (v2.1)</string>
+    <string name="btn_expandable_banner">Expandable Banner</string>
+    <string name="banner_expandable_title">New message from Alice</string>
+    <string name="banner_expandable_message">Hey! How are you doing?</string>
 </resources>

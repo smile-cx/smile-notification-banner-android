@@ -26,6 +26,8 @@ class MainActivity : AppCompatActivity() {
         setupCustomizationButtons()
         setupVibrationButtons()
         setupSingletonButtons()
+        setupEnhancedLayoutButtons()
+        setupExpandableButtons()
     }
 
     private fun setupBannerTypeButtons() {
@@ -211,6 +213,93 @@ class MainActivity : AppCompatActivity() {
                     .duration(3000L)
                     .show()
             }
+        }
+    }
+
+    private fun setupEnhancedLayoutButtons() {
+        // Banner with title
+        findViewById<MaterialButton>(R.id.btnWithTitle).setOnClickListener {
+            SmileBanner.make(this)
+                .type(BannerType.INFO)
+                .title(getString(R.string.banner_title_example))
+                .message(getString(R.string.banner_subtitle_example))
+                .position(BannerPosition.TOP)
+                .duration(3000L)
+                .show()
+        }
+
+        // Banner with left image (using drawable)
+        findViewById<MaterialButton>(R.id.btnWithLeftImage).setOnClickListener {
+            SmileBanner.make(this)
+                .type(BannerType.SUCCESS)
+                .title("New Achievement!")
+                .message("You've unlocked a new badge")
+                .leftImage(android.R.drawable.star_big_on)
+                .position(BannerPosition.TOP)
+                .duration(3000L)
+                .show()
+        }
+
+        // Banner with right image
+        findViewById<MaterialButton>(R.id.btnWithRightImage).setOnClickListener {
+            SmileBanner.make(this)
+                .type(BannerType.WARNING)
+                .title("Update Available")
+                .message("Version 2.0 is ready to install")
+                .rightImage(android.R.drawable.ic_popup_sync)
+                .position(BannerPosition.TOP)
+                .duration(3000L)
+                .show()
+        }
+
+        // Banner with custom view (circular badge)
+        findViewById<MaterialButton>(R.id.btnWithCustomView).setOnClickListener {
+            // Create a custom badge view
+            val badgeView = layoutInflater.inflate(
+                android.R.layout.simple_list_item_1,
+                null
+            ).apply {
+                findViewById<android.widget.TextView>(android.R.id.text1)?.apply {
+                    text = "3"
+                    textSize = 16f
+                    setTextColor(android.graphics.Color.WHITE)
+                    setBackgroundColor(android.graphics.Color.RED)
+                    gravity = android.view.Gravity.CENTER
+                    layoutParams = android.view.ViewGroup.LayoutParams(60, 60)
+                }
+            }
+
+            SmileBanner.make(this)
+                .type(BannerType.INFO)
+                .title("New Messages")
+                .message("You have 3 unread messages")
+                .rightView(badgeView)
+                .position(BannerPosition.TOP)
+                .duration(3000L)
+                .show()
+        }
+    }
+
+    private fun setupExpandableButtons() {
+        findViewById<MaterialButton>(R.id.btnExpandableBanner).setOnClickListener {
+            SmileBanner.make(this)
+                .type(BannerType.INFO)
+                .title(getString(R.string.banner_expandable_title))
+                .message(getString(R.string.banner_expandable_message))
+                .leftImage(android.R.drawable.ic_dialog_email)
+                .expandable(true)
+                .expandableInputHint("Type your reply...")
+                .expandableButtonText("Send")
+                .onExpandableSubmit { text ->
+                    android.widget.Toast.makeText(
+                        this,
+                        "You replied: $text",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+                .position(BannerPosition.TOP)
+                .duration(10000L) // Longer duration to allow interaction
+                .show()
         }
     }
 }

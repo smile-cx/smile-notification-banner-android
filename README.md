@@ -11,12 +11,14 @@ A modern, customizable in-app notification banner library for Android, built wit
 
 - **Multiple Banner Types**: Success, Info, Warning, Error, and Custom
 - **Flexible Positioning**: Display banners at the top or bottom of the screen
+- **Enhanced Layout**: Support for title + message, left/right images or custom views (NEW in v2.1)
+- **Expandable Quick Reply**: Drag-to-expand input field for inline responses (NEW in v2.1)
 - **Smooth Animations**: Beautiful slide-in/slide-out animations with intelligent singleton management
-- **Haptic Feedback**: Optional vibration support with configurable duration (NEW in v2.0)
+- **Haptic Feedback**: Optional vibration support with configurable duration
 - **Auto-Dismiss**: Configure banners to automatically dismiss after a specified duration
-- **Fully Customizable**: Customize colors, icons, layouts, and more
+- **Fully Customizable**: Customize colors, icons, layouts, images, and more
 - **Click Listeners**: Handle banner and dismiss events
-- **Smart Singleton**: Automatically manages multiple rapid notifications with clean transitions (NEW in v2.0)
+- **Smart Singleton**: Automatically manages multiple rapid notifications with clean transitions
 - **Modern Architecture**: Built with Kotlin Coroutines and AndroidX
 - **Android 15 Ready**: Full edge-to-edge support with automatic window insets handling
 - **Display Cutout Support**: Works perfectly on notched/holed devices
@@ -91,14 +93,14 @@ Add the library to your module's `build.gradle.kts` (or `build.gradle`):
 **Kotlin DSL (build.gradle.kts):**
 ```kotlin
 dependencies {
-    implementation("com.github.smile-cx:smile-notification-banner-android:2.0.0")
+    implementation("com.github.smile-cx:smile-notification-banner-android:2.1.0")
 }
 ```
 
 **Groovy (build.gradle):**
 ```groovy
 dependencies {
-    implementation 'com.github.smile-cx:smile-notification-banner-android:2.0.0'
+    implementation 'com.github.smile-cx:smile-notification-banner-android:2.1.0'
 }
 ```
 
@@ -263,6 +265,96 @@ SmileBanner.make(this)
 // The banner from Alice disappears instantly, Bob's message shows smoothly
 ```
 
+### Enhanced Layout with Title (v2.1)
+
+Create richer notification banners with separate title and message:
+
+```kotlin
+SmileBanner.make(this)
+    .type(BannerType.INFO)
+    .title("Important Notification")
+    .message("This banner has both a bold title and a message")
+    .position(BannerPosition.TOP)
+    .duration(3000L)
+    .show()
+```
+
+### Left and Right Images/Views (v2.1)
+
+Add images or custom views to the left or right side of banners:
+
+```kotlin
+// Banner with left image from drawable
+SmileBanner.make(this)
+    .title("New Achievement!")
+    .message("You've unlocked a new badge")
+    .leftImage(R.drawable.ic_star)
+    .duration(3000L)
+    .show()
+
+// Banner with right image
+SmileBanner.make(this)
+    .title("Update Available")
+    .message("Version 2.0 is ready")
+    .rightImage(R.drawable.ic_download)
+    .show()
+
+// Banner with custom views
+val avatarView = layoutInflater.inflate(R.layout.custom_avatar, null)
+// Configure avatarView...
+
+SmileBanner.make(this)
+    .title("New Message")
+    .message("Alice sent you a message")
+    .leftView(avatarView)
+    .show()
+```
+
+**Loading images from URLs**: The library supports image loading via callback:
+
+```kotlin
+SmileBanner.make(this)
+    .title("New Message")
+    .message("From Alice")
+    .leftImageUrl("https://example.com/avatar.jpg", circular = true) { imageView, url, circular ->
+        // Use your preferred image loading library
+        Glide.with(this)
+            .load(url)
+            .apply(if (circular) RequestOptions.circleCropTransform() else RequestOptions())
+            .into(imageView)
+    }
+    .show()
+```
+
+### Expandable Quick Reply (v2.1)
+
+Add an expandable input field for quick responses - perfect for chat notifications:
+
+```kotlin
+SmileBanner.make(this)
+    .type(BannerType.INFO)
+    .title("New message from Alice")
+    .message("Hey! How are you doing?")
+    .leftImage(R.drawable.ic_person)
+    .expandable(true)
+    .expandableInputHint("Type your reply...")
+    .expandableButtonText("Send")
+    .onExpandableSubmit { text ->
+        // Handle the submitted text
+        sendReply(text)
+        Toast.makeText(this, "Reply sent: $text", Toast.LENGTH_SHORT).show()
+    }
+    .duration(15000L) // Longer duration for interaction
+    .show()
+```
+
+**How it works:**
+1. The banner shows with a drag indicator at the bottom
+2. User drags down on the indicator to reveal the input field
+3. User types their reply and taps the send button
+4. Your callback receives the text
+5. Input is cleared and banner optionally collapses
+
 ### Click Listeners
 
 Handle banner clicks and dismiss events:
@@ -388,11 +480,24 @@ SmileBanner.dismissCurrent()
 | Method | Parameter Type | Description |
 |--------|----------------|-------------|
 | `type()` | `BannerType` | Banner type (SUCCESS, INFO, WARNING, ERROR, CUSTOM) |
+| `title()` | `String` or `@StringRes Int` | Title text (bold, optional). **NEW in v2.1** |
 | `message()` | `String` or `@StringRes Int` | Message to display (supports both string and resource ID) |
 | `position()` | `BannerPosition` | Banner position (TOP or BOTTOM) |
 | `duration()` | `Long` | Auto-dismiss duration in ms (0 = no auto-dismiss) |
 | `dismissible()` | `Boolean` | Show/hide close button (default: true) |
-| `vibrate()` | `VibrationDuration` (optional) | Enable vibration feedback (SHORT/MEDIUM/LONG). If called without parameter, uses SHORT (50ms). **NEW in v2.0** |
+| `vibrate()` | `VibrationDuration` (optional) | Enable vibration feedback (SHORT/MEDIUM/LONG). If called without parameter, uses SHORT (50ms) |
+| `leftView()` | `View` | Custom view for left side. **NEW in v2.1** |
+| `leftImage()` | `@DrawableRes Int` | Left side image from drawable resource. **NEW in v2.1** |
+| `leftImageUrl()` | `String, Boolean, Callback` | Left side image from URL with loading callback. **NEW in v2.1** |
+| `leftImageCircular()` | `Boolean` | Make left image circular. **NEW in v2.1** |
+| `rightView()` | `View` | Custom view for right side. **NEW in v2.1** |
+| `rightImage()` | `@DrawableRes Int` | Right side image from drawable resource. **NEW in v2.1** |
+| `rightImageUrl()` | `String, Boolean, Callback` | Right side image from URL with loading callback. **NEW in v2.1** |
+| `rightImageCircular()` | `Boolean` | Make right image circular. **NEW in v2.1** |
+| `expandable()` | `Boolean` | Enable drag-to-expand input field. **NEW in v2.1** |
+| `expandableInputHint()` | `String` or `@StringRes Int` | Hint text for expandable input. **NEW in v2.1** |
+| `expandableButtonText()` | `String` or `@StringRes Int` | Button text for expandable submit. **NEW in v2.1** |
+| `onExpandableSubmit()` | `(String) -> Unit` | Callback when expandable text is submitted. **NEW in v2.1** |
 | `customLayout()` | `@LayoutRes Int` | Custom layout resource ID |
 | `backgroundColor()` | `@ColorInt Int` | Custom background color (direct color value) |
 | `backgroundColorRes()` | `@ColorRes Int` | Custom background color (color resource ID) |
@@ -413,8 +518,11 @@ The project includes a complete sample app in the `sample` module that demonstra
 - Auto-dismiss functionality
 - Custom colors and styling
 - Click listeners and callbacks
-- **Vibration feedback with different durations** (NEW in v2.0)
-- **Rapid banner display (singleton behavior demo)** (NEW in v2.0)
+- Vibration feedback with different durations
+- Rapid banner display (singleton behavior demo)
+- **Banners with title and message** (NEW in v2.1)
+- **Left and right images/views** (NEW in v2.1)
+- **Expandable quick reply with input field** (NEW in v2.1)
 
 ### Running the Sample App
 
