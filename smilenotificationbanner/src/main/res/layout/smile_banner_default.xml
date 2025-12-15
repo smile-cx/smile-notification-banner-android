@@ -96,20 +96,6 @@
             app:layout_constraintBottom_toBottomOf="@id/bannerContentArea"
             app:tint="@color/smile_banner_text" />
 
-        <!-- Drag indicator (only visible when expandable is enabled) -->
-        <View
-            android:id="@+id/bannerDragIndicator"
-            android:layout_width="40dp"
-            android:layout_height="4dp"
-            android:layout_marginTop="8dp"
-            android:background="@color/smile_banner_text"
-            android:alpha="0.3"
-            android:visibility="gone"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/bannerContentArea"
-            tools:visibility="visible" />
-
         <!-- Expandable content (input + button) -->
         <LinearLayout
             android:id="@+id/bannerExpandableContent"
@@ -120,7 +106,7 @@
             android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/bannerDragIndicator"
+            app:layout_constraintTop_toBottomOf="@id/bannerContentArea"
             tools:visibility="visible">
 
             <EditText
@@ -131,7 +117,9 @@
                 android:layout_marginEnd="8dp"
                 android:hint="Type a reply..."
                 android:inputType="text"
+                android:imeOptions="actionSend"
                 android:maxLines="3"
+                android:minHeight="48dp"
                 android:textColor="@color/smile_banner_text"
                 android:textColorHint="@color/smile_banner_text"
                 android:backgroundTint="@color/smile_banner_text" />
@@ -144,6 +132,22 @@
                 android:textSize="14sp"
                 style="@style/Widget.MaterialComponents.Button.TextButton" />
         </LinearLayout>
+
+        <!-- Drag indicator (only visible when expandable is enabled) -->
+        <View
+            android:id="@+id/bannerDragIndicator"
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="@color/smile_banner_text"
+            android:alpha="0.3"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/bannerExpandableContent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            tools:visibility="visible" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

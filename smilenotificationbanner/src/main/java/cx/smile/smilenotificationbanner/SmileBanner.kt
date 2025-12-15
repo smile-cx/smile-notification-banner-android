@@ -552,8 +552,8 @@ class SmileBanner private constructor(
         // Setup drag-to-expand
         setupDragToExpand(dragIndicator, expandableContent)
 
-        // Setup submit button
-        expandableButton?.setOnClickListener {
+        // Setup submit action for both button and keyboard
+        val submitAction = {
             val text = expandableInput?.text?.toString() ?: ""
             if (text.isNotBlank()) {
                 config.onExpandableSubmit?.invoke(text)
@@ -561,6 +561,21 @@ class SmileBanner private constructor(
                 // Collapse and dismiss to process queue
                 collapseExpandable(expandableContent)
                 dismiss()
+            }
+        }
+
+        // Setup submit button
+        expandableButton?.setOnClickListener {
+            submitAction()
+        }
+
+        // Setup IME action for keyboard send button
+        expandableInput?.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEND) {
+                submitAction()
+                true
+            } else {
+                false
             }
         }
     }
@@ -594,16 +609,37 @@ class SmileBanner private constructor(
 
     private fun expandExpandable(expandableContent: ViewGroup?) {
         isExpanded = true
+
+        // Cancel auto-dismiss when expanded
+        autoDismissJob?.cancel()
+
         expandableContent?.visibility = View.VISIBLE
         expandableContent?.alpha = 0f
         expandableContent?.animate()
             ?.alpha(1f)
             ?.setDuration(200)
+            ?.withEndAction {
+                // Focus input and show keyboard after animation
+                val expandableInput = bannerView?.findViewById<android.widget.EditText>(R.id.bannerExpandableInput)
+                expandableInput?.requestFocus()
+
+                // Show keyboard
+                val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                imm?.showSoftInput(expandableInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+            }
             ?.start()
     }
 
     private fun collapseExpandable(expandableContent: ViewGroup?) {
         isExpanded = false
+
+        // Hide keyboard
+        val expandableInput = bannerView?.findViewById<android.widget.EditText>(R.id.bannerExpandableInput)
+        expandableInput?.let { input ->
+            val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            imm?.hideSoftInputFromWindow(input.windowToken, 0)
+        }
+
         expandableContent?.animate()
             ?.alpha(0f)
             ?.setDuration(200)
