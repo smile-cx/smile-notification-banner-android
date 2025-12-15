@@ -44,7 +44,6 @@
             android:layout_marginStart="@dimen/smile_banner_padding"
             android:layout_marginEnd="@dimen/smile_banner_padding_small"
             android:orientation="vertical"
-            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@id/bannerRightContainer"
             app:layout_constraintStart_toEndOf="@id/bannerLeftContainer"
             app:layout_constraintTop_toTopOf="parent">
@@ -78,7 +77,6 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="@dimen/smile_banner_padding_small"
             android:visibility="gone"
-            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             tools:visibility="visible" />
