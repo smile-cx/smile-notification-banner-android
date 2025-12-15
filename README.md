@@ -11,6 +11,8 @@ A modern, customizable in-app notification banner library for Android, built wit
 - **Fully Customizable**: Customize colors, icons, layouts, and more
 - **Click Listeners**: Handle banner and dismiss events
 - **Modern Architecture**: Built with Kotlin Coroutines and AndroidX
+- **Android 15 Ready**: Full edge-to-edge support with automatic window insets handling
+- **Display Cutout Support**: Works perfectly on notched/holed devices
 - **Java Compatible**: Full interoperability with Java projects
 - **Lifecycle Aware**: Properly handles activity lifecycle
 - **Backward Compatible**: Supports Android API 21+ (Android 5.0 Lollipop)

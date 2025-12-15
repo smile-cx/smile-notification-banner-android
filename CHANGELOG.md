@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial release of SmileNotificationBanner
 - Package: `cx.smile.smilenotificationbanner`
+- Android 15 (API 36) support with edge-to-edge compatibility
 - Support for multiple banner types (SUCCESS, INFO, WARNING, ERROR, CUSTOM)
 - Flexible positioning (TOP, BOTTOM)
 - Smooth slide-in/slide-out animations
@@ -35,9 +36,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Technical Details
 - Built with Kotlin 1.9.20
 - Uses Kotlin Coroutines for async operations
-- AndroidX dependencies
+- AndroidX dependencies with WindowInsetsCompat for edge-to-edge support
 - ViewBinding support
 - Internal configuration class (BannerConfig) to keep public API simple
+- Automatic window insets handling for status bar and navigation bar
+- Display cutout support for notched devices
 - Minimum SDK: API 21 (Android 5.0)
 - Target SDK: API 36 (Android 15)
 

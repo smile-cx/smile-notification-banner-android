@@ -3,10 +3,12 @@ package cx.smile.smilenotificationbanner
 import android.app.Activity
 import android.content.Context
 import android.graphics.Color
+import android.os.Build
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.widget.ImageView
 import android.widget.PopupWindow
 import android.widget.TextView
@@ -15,6 +17,8 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.LayoutRes
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -271,12 +275,48 @@ class SmileBanner private constructor(
                         BannerPosition.TOP -> Gravity.TOP
                         BannerPosition.BOTTOM -> Gravity.BOTTOM
                     }
-                    showAtLocation(rootView, gravity, 0, 0)
+
+                    // Calculate insets for Android 15+ edge-to-edge support
+                    val (xOffset, yOffset) = calculateInsets(rootView)
+
+                    showAtLocation(rootView, gravity, xOffset, yOffset)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
             }
         }
+    }
+
+    /**
+     * Calculate window insets for proper positioning with edge-to-edge support
+     * Ensures banners don't overlap with system bars on Android 15+
+     */
+    private fun calculateInsets(rootView: View): Pair<Int, Int> {
+        var xOffset = 0
+        var yOffset = 0
+
+        // Use ViewCompat for backward compatibility
+        val insets = ViewCompat.getRootWindowInsets(rootView)
+        if (insets != null) {
+            when (config.position) {
+                BannerPosition.TOP -> {
+                    // Account for status bar at top
+                    val systemBarsInsets = insets.getInsets(
+                        WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+                    )
+                    yOffset = systemBarsInsets.top
+                }
+                BannerPosition.BOTTOM -> {
+                    // Account for navigation bar at bottom
+                    val systemBarsInsets = insets.getInsets(
+                        WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+                    )
+                    yOffset = systemBarsInsets.bottom
+                }
+            }
+        }
+
+        return Pair(xOffset, yOffset)
     }
 
     private fun setupAutoDismiss() {
