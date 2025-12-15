@@ -226,9 +226,6 @@ class SmileBanner private constructor(
             configurDefaultBanner()
         }
 
-        // Apply top padding for status bar when banner is at TOP
-        applySystemBarPadding()
-
         // Set click listener on the banner
         config.onBannerClick?.let { clickListener ->
             bannerView?.setOnClickListener { view ->
@@ -247,10 +244,15 @@ class SmileBanner private constructor(
     private fun applySystemBarPadding() {
         val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
         val container = bannerView?.findViewById<ViewGroup>(R.id.bannerContainer) ?: return
-        val rootView = activity.findViewById<View>(android.R.id.content)
 
+        if (config.position != BannerPosition.TOP) return
+
+        val rootView = activity.findViewById<View>(android.R.id.content)
+        var topInset = 0
+
+        // Try to get insets from ViewCompat
         val insets = ViewCompat.getRootWindowInsets(rootView)
-        if (insets != null && config.position == BannerPosition.TOP) {
+        if (insets != null) {
             // Get status bar inset
             val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             val statusBarHeight = systemBarsInsets.top
@@ -260,8 +262,19 @@ class SmileBanner private constructor(
             val cutoutHeight = displayCutoutInsets.top
 
             // Use the maximum of status bar and cutout to ensure content is below both
-            val topInset = maxOf(statusBarHeight, cutoutHeight)
+            topInset = maxOf(statusBarHeight, cutoutHeight)
+        }
 
+        // Fallback: if insets are not available, calculate status bar height manually
+        if (topInset == 0) {
+            val resourceId = activity.resources.getIdentifier("status_bar_height", "dimen", "android")
+            if (resourceId > 0) {
+                topInset = activity.resources.getDimensionPixelSize(resourceId)
+            }
+        }
+
+        // Only proceed if we have a valid inset
+        if (topInset > 0) {
             // Remove top margin from card to fill the entire top
             val layoutParams = card.layoutParams as? ViewGroup.MarginLayoutParams
             layoutParams?.let {
@@ -276,7 +289,7 @@ class SmileBanner private constructor(
             // Add top padding to push content below status bar and cutout
             container.setPadding(
                 container.paddingLeft,
-                container.paddingTop + topInset,
+                topInset,
                 container.paddingRight,
                 container.paddingBottom
             )
@@ -782,6 +795,11 @@ class SmileBanner private constructor(
                     }
 
                     showAtLocation(rootView, gravity, xOffset, yOffset)
+
+                    // Apply system bar padding after popup is shown
+                    bannerView?.post {
+                        applySystemBarPadding()
+                    }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -796,6 +814,8 @@ class SmileBanner private constructor(
     private fun adjustInitialPositionForAnimation(rootView: View) {
         val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
 
+        var topInset = 0
+
         val insets = ViewCompat.getRootWindowInsets(rootView)
         if (insets != null) {
             // Get status bar inset
@@ -807,10 +827,20 @@ class SmileBanner private constructor(
             val cutoutHeight = displayCutoutInsets.top
 
             // Use the maximum of status bar and cutout
-            val topInset = maxOf(statusBarHeight, cutoutHeight)
+            topInset = maxOf(statusBarHeight, cutoutHeight)
+        }
 
-            // Apply negative translation to push the banner up by the status bar/cutout height
-            // The XML animation will then slide it down, starting from above the screen
+        // Fallback: if insets are not available, calculate status bar height manually
+        if (topInset == 0) {
+            val resourceId = activity.resources.getIdentifier("status_bar_height", "dimen", "android")
+            if (resourceId > 0) {
+                topInset = activity.resources.getDimensionPixelSize(resourceId)
+            }
+        }
+
+        // Apply negative translation to push the banner up by the status bar/cutout height
+        // The XML animation will then slide it down, starting from above the screen
+        if (topInset > 0) {
             card.translationY = -topInset.toFloat()
         }
     }
