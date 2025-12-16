@@ -33,7 +33,7 @@ class BannerConfigTest {
             type = BannerType.INFO,
             message = "Test"
         )
-        assertEquals(BannerPosition.TOP, config.position)
+        // Position parameter removed - banners always show at TOP
         assertEquals(0L, config.duration)
         assertEquals(true, config.dismissible)
         assertNull(config.customLayout)
@@ -53,7 +53,6 @@ class BannerConfigTest {
         val config = BannerConfig(
             type = BannerType.CUSTOM,
             message = "Test",
-            position = BannerPosition.BOTTOM,
             duration = 5000L,
             dismissible = false,
             customLayout = android.R.layout.simple_list_item_1,
@@ -66,7 +65,7 @@ class BannerConfigTest {
 
         assertEquals(BannerType.CUSTOM, config.type)
         assertEquals("Test", config.message)
-        assertEquals(BannerPosition.BOTTOM, config.position)
+        // Position parameter removed - banners always show at TOP
         assertEquals(5000L, config.duration)
         assertEquals(false, config.dismissible)
         assertEquals(android.R.layout.simple_list_item_1, config.customLayout)

@@ -27,7 +27,7 @@ class SmileBannerTest {
     @Test
     fun `make returns builder instance`() {
         val builder = SmileBanner.make(mockActivity)
-        assert(builder is SmileBanner.Builder)
+        assert(builder::class == SmileBanner.Builder::class)
     }
 
     @Test
@@ -35,9 +35,8 @@ class SmileBannerTest {
         val builder = SmileBanner.make(mockActivity)
             .type(BannerType.SUCCESS)
             .message("Test")
-            .position(BannerPosition.TOP)
 
-        assert(builder is SmileBanner.Builder)
+        assert(builder::class == SmileBanner.Builder::class)
     }
 
     @Test
@@ -54,7 +53,7 @@ class SmileBannerTest {
             BannerType.SUCCESS,
             "Test message"
         )
-        assert(banner is SmileBanner)
+        assert(banner::class == SmileBanner::class)
     }
 
     @Test
@@ -63,21 +62,8 @@ class SmileBannerTest {
             mockActivity,
             BannerType.INFO,
             "Test message",
-            BannerPosition.TOP,
             3000L
         )
-        assert(banner is SmileBanner)
-    }
-
-    @Test
-    fun `show method with all parameters works`() {
-        val banner = SmileBanner.show(
-            mockActivity,
-            BannerType.WARNING,
-            "Test message",
-            BannerPosition.BOTTOM,
-            2000L
-        )
-        assert(banner is SmileBanner)
+        assert(banner::class == SmileBanner::class)
     }
 }

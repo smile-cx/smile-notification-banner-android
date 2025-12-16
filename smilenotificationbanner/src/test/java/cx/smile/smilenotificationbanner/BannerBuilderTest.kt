@@ -32,7 +32,6 @@ class BannerBuilderTest {
         val result = builder
             .type(BannerType.SUCCESS)
             .message("Test")
-            .position(BannerPosition.TOP)
             .duration(3000L)
             .dismissible(false)
 
@@ -47,13 +46,7 @@ class BannerBuilderTest {
         }
     }
 
-    @Test
-    fun `builder accepts all positions`() {
-        BannerPosition.values().forEach { position ->
-            val result = builder.position(position)
-            assert(result === builder)
-        }
-    }
+    // Position is deprecated and no longer configurable - test removed
 
     @Test
     fun `builder accepts string message`() {

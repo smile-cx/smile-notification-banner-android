@@ -3,19 +3,18 @@ package cx.smile.smilenotificationbanner
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
+@Suppress("DEPRECATION")
 class BannerPositionTest {
 
     @Test
-    fun `all banner positions exist`() {
+    fun `banner position TOP exists`() {
         val positions = BannerPosition.values()
-        assertEquals(2, positions.size)
+        assertEquals(1, positions.size)
         assert(positions.contains(BannerPosition.TOP))
-        assert(positions.contains(BannerPosition.BOTTOM))
     }
 
     @Test
-    fun `banner position names are correct`() {
+    fun `banner position name is correct`() {
         assertEquals("TOP", BannerPosition.TOP.name)
-        assertEquals("BOTTOM", BannerPosition.BOTTOM.name)
     }
 }
