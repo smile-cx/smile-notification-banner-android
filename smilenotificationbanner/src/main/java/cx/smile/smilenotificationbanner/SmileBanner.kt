@@ -1233,6 +1233,8 @@ class SmileBanner private constructor(
 
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    // Capture initial touch state - these values are read in ACTION_MOVE/ACTION_UP
+                    // IDE may warn "never read" but they're used in subsequent event callbacks
                     initialY = event.rawY
                     initialX = event.rawX
                     initialTranslationY = card.translationY
