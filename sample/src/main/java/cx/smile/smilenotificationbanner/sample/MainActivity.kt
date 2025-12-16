@@ -86,7 +86,7 @@ class MainActivity : AppCompatActivity() {
             SmileBanner.make(this)
                 .type(BannerType.INFO)
                 .message(getString(R.string.banner_click_msg)) // Using string directly
-                .onBannerClick { view ->
+                .onBannerClick { _ ->
                     Toast.makeText(
                         this,
                         "Banner clicked!",
