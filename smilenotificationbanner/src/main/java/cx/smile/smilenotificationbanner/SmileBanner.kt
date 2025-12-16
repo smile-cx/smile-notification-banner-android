@@ -508,17 +508,17 @@ class SmileBanner private constructor(
         Log.d("SmileBanner", "Animating height shrink from $currentHeight to $targetHeight")
 
         // Animate the card height (shrinking)
-        ValueAnimator.ofInt(currentHeight, targetHeight).apply {
-            duration = 300L // Match the dismissal animation duration
-            interpolator = AccelerateDecelerateInterpolator()
-            addUpdateListener { animator ->
+        ValueAnimator.ofInt(currentHeight, targetHeight).also {
+            it.duration = 300L // Match the dismissal animation duration
+            it.interpolator = AccelerateDecelerateInterpolator()
+            it.addUpdateListener { animator ->
                 val value = animator.animatedValue as Int
                 popupWindow?.update(
                     popupWindow?.width ?: ViewGroup.LayoutParams.MATCH_PARENT,
                     value
                 )
             }
-            start()
+            it.start()
         }
     }
 
@@ -1028,9 +1028,9 @@ class SmileBanner private constructor(
 
         // Animate back to 0 (fully collapsed)
         val currentHeight = expandableArea.height
-        ValueAnimator.ofInt(currentHeight, 0).apply {
-            duration = 200
-            addUpdateListener { animator ->
+        ValueAnimator.ofInt(currentHeight, 0).also {
+            it.duration = 200
+            it.addUpdateListener { animator ->
                 val value = animator.animatedValue as Int
                 val layoutParams = expandableArea.layoutParams
                 layoutParams.height = value
@@ -1042,13 +1042,13 @@ class SmileBanner private constructor(
                     baseCardHeight + value
                 )
             }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
+            it.addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
                     expandableContent?.visibility = View.GONE
                     Log.d("SmileBanner", "collapseToZero: animation complete, expandable area now at height 0")
                 }
             })
-            start()
+            it.start()
         }
     }
 
@@ -1088,9 +1088,9 @@ class SmileBanner private constructor(
 
         // Animate expandable area to full screen
         val currentHeight = expandableArea.height
-        ValueAnimator.ofInt(currentHeight, targetHeight).apply {
-            duration = 300
-            addUpdateListener { animator ->
+        ValueAnimator.ofInt(currentHeight, targetHeight).also {
+            it.duration = 300
+            it.addUpdateListener { animator ->
                 val value = animator.animatedValue as Int
                 val layoutParams = expandableArea.layoutParams
                 layoutParams.height = value
@@ -1104,7 +1104,7 @@ class SmileBanner private constructor(
                     totalHeight.coerceAtMost(screenHeight)
                 )
             }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
+            it.addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
                     // Focus input and show keyboard after animation
                     val expandableInput = bannerView?.findViewById<EditText>(R.id.bannerExpandableInput)
@@ -1122,7 +1122,7 @@ class SmileBanner private constructor(
                     }
                 }
             })
-            start()
+            it.start()
         }
     }
 
@@ -1145,9 +1145,9 @@ class SmileBanner private constructor(
             Log.d("SmileBanner", "animateRollUpAndDismiss: collapsing from $currentHeight to 0")
 
             // Animate collapse
-            ValueAnimator.ofInt(currentHeight, 0).apply {
-                duration = 200
-                addUpdateListener { animator ->
+            ValueAnimator.ofInt(currentHeight, 0).also {
+                it.duration = 200
+                it.addUpdateListener { animator ->
                     val value = animator.animatedValue as Int
                     expandableArea.layoutParams?.height = value
                     expandableArea.requestLayout()
@@ -1158,7 +1158,7 @@ class SmileBanner private constructor(
                         baseCardHeight + value
                     )
                 }
-                addListener(object : android.animation.AnimatorListenerAdapter() {
+                it.addListener(object : android.animation.AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: android.animation.Animator) {
                         expandableContent?.visibility = View.GONE
                         Log.d("SmileBanner", "animateRollUpAndDismiss: collapse complete, now sliding up")
@@ -1166,7 +1166,7 @@ class SmileBanner private constructor(
                         slideUpAndDismiss(card)
                     }
                 })
-                start()
+                it.start()
             }
         } else {
             // No expandable area or already collapsed, just slide up
