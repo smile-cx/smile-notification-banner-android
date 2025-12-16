@@ -84,7 +84,7 @@ class SmileBanner private constructor(
         private fun addToQueue(activity: Activity, config: BannerConfig) {
             // If queue is at max size, remove the oldest
             if (pendingQueue.size >= MAX_QUEUE_SIZE) {
-                val removed = pendingQueue.removeAt(0)
+                pendingQueue.removeAt(0)
                 android.util.Log.d("SmileBanner", "Queue full (max: $MAX_QUEUE_SIZE), removing oldest banner to make room")
             }
 
@@ -557,7 +557,6 @@ class SmileBanner private constructor(
      */
     private fun applySystemBarPadding() {
         val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
-        val container = bannerView?.findViewById<ViewGroup>(R.id.bannerContainer) ?: return
 
         val rootView = activity.findViewById<View>(android.R.id.content)
         var topInset = 0
@@ -611,7 +610,7 @@ class SmileBanner private constructor(
 
             // After setting minimum height, calculate and apply centering margins
             card.post {
-                applyCenteringMargins(card, topInset)
+                applyCenteringMargins(topInset)
             }
         }
     }
@@ -620,9 +619,8 @@ class SmileBanner private constructor(
      * Calculate and apply vertical centering margins to the content area
      * This centers the content when the banner is at minimum height
      */
-    private fun applyCenteringMargins(card: CardView, topInset: Int) {
+    private fun applyCenteringMargins(topInset: Int) {
         val contentArea = bannerView?.findViewById<ViewGroup>(R.id.bannerContentArea) ?: return
-        val container = bannerView?.findViewById<ViewGroup>(R.id.bannerContainer) ?: return
         val dragIndicator = bannerView?.findViewById<View>(R.id.bannerDragIndicator)
 
         // Get the action bar height (the visible area below status bar where content should be centered)
@@ -683,6 +681,7 @@ class SmileBanner private constructor(
      * Configure status bar appearance
      * Makes status bar transparent and adjusts icon colors based on banner brightness
      */
+    @Suppress("DEPRECATION")
     private fun applyStatusBarColor() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             val window = activity.window
@@ -723,6 +722,7 @@ class SmileBanner private constructor(
     /**
      * Restore original status bar color and icon appearance
      */
+    @Suppress("DEPRECATION")
     private fun restoreStatusBarColor() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             val window = activity.window
@@ -833,7 +833,7 @@ class SmileBanner private constructor(
                 defaultIcon?.visibility = View.GONE
 
                 // Call the callback to load the image
-                config.onLoadLeftImage?.invoke(imageView, config.leftImageUrl, config.leftImageCircular)
+                config.onLoadLeftImage.invoke(imageView, config.leftImageUrl, config.leftImageCircular)
             }
             config.leftImage != null -> {
                 // Drawable resource
@@ -875,7 +875,7 @@ class SmileBanner private constructor(
                 container?.addView(imageView)
 
                 // Call the callback to load the image
-                config.onLoadRightImage?.invoke(imageView, config.rightImageUrl, config.rightImageCircular)
+                config.onLoadRightImage.invoke(imageView, config.rightImageUrl, config.rightImageCircular)
             }
             config.rightImage != null -> {
                 // Drawable resource
@@ -1020,7 +1020,7 @@ class SmileBanner private constructor(
 
         android.util.Log.d("SmileBanner", "Setting touch listener on drag indicator")
 
-        dragIndicator.setOnTouchListener { view, event ->
+        dragIndicator.setOnTouchListener { _, event ->
             android.util.Log.d("SmileBanner", "Drag indicator touch event: action=${event.action}, rawY=${event.rawY}")
 
             when (event.action) {
@@ -1167,6 +1167,7 @@ class SmileBanner private constructor(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun expandToFullScreen(expandableArea: ViewGroup?, card: CardView?) {
         if (expandableArea == null || card == null) return
 
@@ -1372,7 +1373,7 @@ class SmileBanner private constructor(
         var dragDirection: DragDirection? = null // Track committed direction
         var touchStartedOnInteractiveView = false
 
-        container.setOnTouchListener { view, event ->
+        container.setOnTouchListener { _, event ->
             android.util.Log.d("SmileBanner", "Container touch event: action=${event.action}, x=${event.x}, y=${event.y}")
 
             when (event.action) {
@@ -1603,6 +1604,7 @@ class SmileBanner private constructor(
                     } else {
                         // Not dragging, treat as a click
                         android.util.Log.d("SmileBanner", "Container ACTION_UP: treating as click")
+                        container.performClick()
                         config.onBannerClick?.invoke(container)
                         // Restart timer after click
                         restartAutoDismiss()
