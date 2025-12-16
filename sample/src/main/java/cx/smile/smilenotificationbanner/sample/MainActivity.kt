@@ -300,7 +300,7 @@ class MainActivity : AppCompatActivity() {
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                 }
-                .duration(10000L) // Longer duration to allow interaction
+                .duration(3000L) // Auto-dismiss after 3 seconds
                 .show()
         }
     }

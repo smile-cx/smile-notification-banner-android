@@ -54,16 +54,11 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/smile_banner_padding"
-            android:layout_marginTop="10dp"
             android:layout_marginEnd="@dimen/smile_banner_padding_small"
             android:orientation="vertical"
-            app:layout_constraintBottom_toTopOf="@id/bannerDragIndicator"
             app:layout_constraintEnd_toStartOf="@id/bannerRightContainer"
             app:layout_constraintStart_toEndOf="@id/bannerLeftContainer"
-            app:layout_constraintTop_toBottomOf="@id/bannerTopSpacer"
-            app:layout_constraintVertical_bias="1.0"
-            app:layout_constraintVertical_chainStyle="packed"
-            app:layout_goneMarginBottom="0dp">
+            app:layout_constraintTop_toBottomOf="@id/bannerTopSpacer">
 
             <TextView
                 android:id="@+id/bannerTitle"
@@ -98,33 +93,21 @@
             app:layout_constraintTop_toTopOf="@id/bannerContentArea"
             tools:visibility="visible" />
 
-        <!-- Drag indicator (positioned between content and expandable area) -->
-        <View
-            android:id="@+id/bannerDragIndicator"
-            android:layout_width="40dp"
-            android:layout_height="4dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="8dp"
-            android:alpha="0.5"
-            android:background="@color/smile_banner_text"
-            android:visibility="gone"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/bannerContentArea"
-            tools:visibility="visible" />
-
         <!-- Expandable area container (dynamically sized during drag, starts at height 0) -->
-        <FrameLayout
+        <LinearLayout
             android:id="@+id/bannerExpandableArea"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:visibility="gone"
+            android:orientation="vertical"
+            android:clipChildren="true"
+            android:clipToPadding="true"
             android:background="@android:color/transparent"
-            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/bannerDragIndicator"
-            tools:visibility="visible">
+            app:layout_constraintTop_toBottomOf="@id/bannerContentArea"
+            tools:visibility="visible"
+            tools:layout_height="100dp">
 
             <!-- Expandable content (input + button) -->
             <LinearLayout
@@ -132,9 +115,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                android:layout_gravity="top"
                 android:orientation="horizontal"
-                android:visibility="visible">
+                android:visibility="gone"
+                tools:visibility="visible">
 
                 <EditText
                     android:id="@+id/bannerExpandableInput"
@@ -162,7 +145,23 @@
                     android:textSize="14sp"
                     style="@style/Widget.MaterialComponents.Button.TextButton" />
             </LinearLayout>
-        </FrameLayout>
+
+        </LinearLayout>
+
+        <!-- Drag indicator (below expandable area and content) -->
+        <View
+            android:id="@+id/bannerDragIndicator"
+            android:layout_width="40dp"
+            android:layout_height="4dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:alpha="0.5"
+            android:background="@color/smile_banner_text"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/bannerExpandableArea"
+            tools:visibility="visible" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

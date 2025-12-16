@@ -608,6 +608,62 @@ class SmileBanner private constructor(
             val actionBarHeight = getActionBarHeight()
             val totalMinHeight = topInset + actionBarHeight
             card.minimumHeight = totalMinHeight
+
+            // After setting minimum height, calculate and apply centering margins
+            card.post {
+                applyCenteringMargins(card, topInset)
+            }
+        }
+    }
+
+    /**
+     * Calculate and apply vertical centering margins to the content area
+     * This centers the content when the banner is at minimum height
+     */
+    private fun applyCenteringMargins(card: CardView, topInset: Int) {
+        val contentArea = bannerView?.findViewById<ViewGroup>(R.id.bannerContentArea) ?: return
+        val container = bannerView?.findViewById<ViewGroup>(R.id.bannerContainer) ?: return
+        val dragIndicator = bannerView?.findViewById<View>(R.id.bannerDragIndicator)
+
+        // Get the action bar height (the visible area below status bar where content should be centered)
+        val actionBarHeight = getActionBarHeight()
+        if (actionBarHeight == 0) return
+
+        // Measure the content area if not yet measured
+        if (contentArea.measuredHeight == 0) {
+            contentArea.measure(
+                View.MeasureSpec.makeMeasureSpec(contentArea.width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+            )
+        }
+
+        val contentHeight = contentArea.measuredHeight
+
+        // Get drag indicator height if visible (0 if gone/invisible)
+        val dragIndicatorHeight = if (dragIndicator?.visibility == View.VISIBLE) {
+            val margins = (dragIndicator.layoutParams as? ViewGroup.MarginLayoutParams)?.let {
+                it.topMargin + it.bottomMargin
+            } ?: 0
+            dragIndicator.height + margins
+        } else {
+            0
+        }
+
+        // Calculate available space in the visible area (action bar height)
+        // actionBarHeight = contentHeight + topMargin + bottomMargin + dragIndicatorHeight
+        val availableSpace = actionBarHeight - contentHeight - dragIndicatorHeight
+
+        // Calculate equal margins for centering (min 4dp)
+        val centeringMargin = maxOf(availableSpace / 2, 4.dpToPx(activity))
+
+        android.util.Log.d("SmileBanner", "Centering calculation: actionBarHeight=$actionBarHeight, topInset=$topInset, contentHeight=$contentHeight, availableSpace=$availableSpace, centeringMargin=$centeringMargin")
+
+        // Apply the calculated margins
+        val layoutParams = contentArea.layoutParams as? androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+        layoutParams?.let {
+            it.topMargin = centeringMargin
+            it.bottomMargin = centeringMargin
+            contentArea.layoutParams = it
         }
     }
 
@@ -1336,6 +1392,12 @@ class SmileBanner private constructor(
                     val displayMetrics = activity.resources.displayMetrics
                     screenHeight = displayMetrics.heightPixels
 
+                    // Cancel auto-dismiss immediately on any touch interaction
+                    if (config.duration > 0) {
+                        autoDismissJob?.cancel()
+                        android.util.Log.d("SmileBanner", "Auto-dismiss paused - user interaction started")
+                    }
+
                     // Check if expandable content is visible - if so, check if touch is inside it
                     val expandableContent = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableContent)
                     var touchInsideExpandableContent = false
@@ -1498,6 +1560,10 @@ class SmileBanner private constructor(
                                     card.animate()
                                         .translationY(initialTranslationY)
                                         .setDuration(200)
+                                        .withEndAction {
+                                            // Restart auto-dismiss timer after animation
+                                            restartAutoDismiss()
+                                        }
                                         .start()
                                 }
                             }
@@ -1510,19 +1576,25 @@ class SmileBanner private constructor(
                                     android.util.Log.d("SmileBanner", "Container ACTION_UP: expand currentHeight=$currentHeight, threshold=$snapThreshold")
 
                                     if (currentHeight > snapThreshold) {
-                                        // Snap to full screen
+                                        // Snap to full screen - don't restart timer, user is expanding
                                         android.util.Log.d("SmileBanner", "Container ACTION_UP: expanding to full screen")
                                         expandToFullScreen(area, card)
                                     } else {
-                                        // Collapse back to 0
+                                        // Collapse back to 0 - user didn't expand, restart timer
                                         android.util.Log.d("SmileBanner", "Container ACTION_UP: collapsing to 0")
                                         val expandableContent = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableContent)
                                         collapseToZero(area, expandableContent, card)
+                                        // Restart timer after collapse animation completes (200ms)
+                                        bannerView?.postDelayed({
+                                            restartAutoDismiss()
+                                        }, 200L)
                                     }
                                 }
                             }
                             else -> {
                                 android.util.Log.d("SmileBanner", "Container ACTION_UP: no action")
+                                // Restart timer if no action taken
+                                restartAutoDismiss()
                             }
                         }
                         isDragging = false
@@ -1532,6 +1604,8 @@ class SmileBanner private constructor(
                         // Not dragging, treat as a click
                         android.util.Log.d("SmileBanner", "Container ACTION_UP: treating as click")
                         config.onBannerClick?.invoke(container)
+                        // Restart timer after click
+                        restartAutoDismiss()
                         false
                     }
                 }
@@ -1721,6 +1795,21 @@ class SmileBanner private constructor(
                 delay(config.duration)
                 dismiss()
             }
+        }
+    }
+
+    /**
+     * Restart auto-dismiss timer if banner has auto-dismiss configured
+     * Used when user interaction ends without expanding or dismissing
+     */
+    private fun restartAutoDismiss() {
+        if (config.duration > 0 && !isExpanded) {
+            autoDismissJob?.cancel()
+            autoDismissJob = scope.launch {
+                delay(config.duration)
+                dismiss()
+            }
+            android.util.Log.d("SmileBanner", "Auto-dismiss timer restarted")
         }
     }
 
