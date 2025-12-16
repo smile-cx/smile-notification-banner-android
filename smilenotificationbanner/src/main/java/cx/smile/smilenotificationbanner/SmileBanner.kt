@@ -683,39 +683,37 @@ class SmileBanner private constructor(
      */
     @Suppress("DEPRECATION")
     private fun applyStatusBarColor() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            val window = activity.window
-            val decorView = window.decorView
+        val window = activity.window
+        val decorView = window.decorView
 
-            // Save original state to restore later
-            originalStatusBarColor = window.statusBarColor
-            originalSystemUiVisibility = decorView.systemUiVisibility
+        // Save original state to restore later
+        originalStatusBarColor = window.statusBarColor
+        originalSystemUiVisibility = decorView.systemUiVisibility
 
-            // Make status bar transparent so banner color shows through
-            window.statusBarColor = Color.TRANSPARENT
+        // Make status bar transparent so banner color shows through
+        window.statusBarColor = Color.TRANSPARENT
 
-            // Get banner background color
-            val backgroundColor = when {
-                config.backgroundColor != null -> config.backgroundColor
-                config.backgroundColorRes != null -> ContextCompat.getColor(activity, config.backgroundColorRes)
-                else -> getDefaultBackgroundColor()
+        // Get banner background color
+        val backgroundColor = when {
+            config.backgroundColor != null -> config.backgroundColor
+            config.backgroundColorRes != null -> ContextCompat.getColor(activity, config.backgroundColorRes)
+            else -> getDefaultBackgroundColor()
+        }
+
+        // Calculate if we need light or dark status bar icons
+        val isLightBackground = isColorLight(backgroundColor)
+
+        // Set status bar icon color based on background brightness
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            var flags = decorView.systemUiVisibility
+            flags = if (isLightBackground) {
+                // Light background -> dark icons
+                flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+            } else {
+                // Dark background -> light icons
+                flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
             }
-
-            // Calculate if we need light or dark status bar icons
-            val isLightBackground = isColorLight(backgroundColor)
-
-            // Set status bar icon color based on background brightness
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                var flags = decorView.systemUiVisibility
-                flags = if (isLightBackground) {
-                    // Light background -> dark icons
-                    flags or View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                } else {
-                    // Dark background -> light icons
-                    flags and View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR.inv()
-                }
-                decorView.systemUiVisibility = flags
-            }
+            decorView.systemUiVisibility = flags
         }
     }
 
@@ -724,19 +722,17 @@ class SmileBanner private constructor(
      */
     @Suppress("DEPRECATION")
     private fun restoreStatusBarColor() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            val window = activity.window
-            val decorView = window.decorView
+        val window = activity.window
+        val decorView = window.decorView
 
-            // Restore status bar color
-            originalStatusBarColor?.let {
-                window.statusBarColor = it
-            }
+        // Restore status bar color
+        originalStatusBarColor?.let {
+            window.statusBarColor = it
+        }
 
-            // Restore system UI visibility (status bar icon colors)
-            originalSystemUiVisibility?.let {
-                decorView.systemUiVisibility = it
-            }
+        // Restore system UI visibility (status bar icon colors)
+        originalSystemUiVisibility?.let {
+            decorView.systemUiVisibility = it
         }
     }
 
@@ -995,131 +991,6 @@ class SmileBanner private constructor(
         }
     }
 
-    private fun setupDragToExpand(dragIndicator: View?, expandableContent: ViewGroup?) {
-        android.util.Log.d("SmileBanner", "setupDragToExpand called - dragIndicator: $dragIndicator, expandableContent: $expandableContent")
-
-        if (dragIndicator == null || expandableContent == null) {
-            android.util.Log.e("SmileBanner", "setupDragToExpand: dragIndicator or expandableContent is null")
-            return
-        }
-
-        val expandableArea = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableArea)
-        val card = bannerView?.findViewById<CardView>(R.id.bannerCard)
-        val container = bannerView?.findViewById<ViewGroup>(R.id.bannerContainer)
-
-        android.util.Log.d("SmileBanner", "setupDragToExpand - expandableArea: $expandableArea, card: $card, container: $container")
-
-        if (expandableArea == null || card == null || container == null) {
-            android.util.Log.e("SmileBanner", "setupDragToExpand: expandableArea, card, or container is null")
-            return
-        }
-
-        var initialY = 0f
-        var baseCardHeight = 0 // Card height without expandable area
-        var screenHeight = 0
-
-        android.util.Log.d("SmileBanner", "Setting touch listener on drag indicator")
-
-        dragIndicator.setOnTouchListener { _, event ->
-            android.util.Log.d("SmileBanner", "Drag indicator touch event: action=${event.action}, rawY=${event.rawY}")
-
-            when (event.action) {
-                android.view.MotionEvent.ACTION_DOWN -> {
-                    initialY = event.rawY
-                    // Calculate base card height (without current expandable area height)
-                    baseCardHeight = card.height - expandableArea.height
-
-                    // Get screen height for full expansion calculation
-                    val displayMetrics = activity.resources.displayMetrics
-                    screenHeight = displayMetrics.heightPixels
-
-                    android.util.Log.d("SmileBanner", "ACTION_DOWN: initialY=$initialY, baseCardHeight=$baseCardHeight, currentExpandableHeight=${expandableArea.height}, screenHeight=$screenHeight")
-                    true
-                }
-                android.view.MotionEvent.ACTION_MOVE -> {
-                    val deltaY = event.rawY - initialY
-                    val currentHeight = expandableArea.height
-
-                    android.util.Log.d("SmileBanner", "ACTION_MOVE: deltaY=$deltaY, currentHeight=$currentHeight")
-
-                    // Allow both downward drag (expand) and upward drag (collapse)
-                    // Start from 0, can grow as much as needed
-                    val newHeight = (currentHeight + deltaY.toInt()).coerceAtLeast(0)
-
-                    android.util.Log.d("SmileBanner", "ACTION_MOVE: newHeight=$newHeight")
-
-                    // Show expandable content when height exceeds a threshold (enough space to show input)
-                    val contentShowThreshold = 60 // Show content after expanding 60px
-                    if (newHeight > contentShowThreshold) {
-                        if (expandableContent.visibility != View.VISIBLE) {
-                            android.util.Log.d("SmileBanner", "ACTION_MOVE: Showing expandable content (height > $contentShowThreshold)")
-                            expandableContent.visibility = View.VISIBLE
-                        }
-                    } else {
-                        if (expandableContent.visibility != View.GONE) {
-                            android.util.Log.d("SmileBanner", "ACTION_MOVE: Hiding expandable content (height <= $contentShowThreshold)")
-                            expandableContent.visibility = View.GONE
-                        }
-                    }
-
-                    // Update expandable area height
-                    val layoutParams = expandableArea.layoutParams
-                    layoutParams.height = newHeight
-                    expandableArea.layoutParams = layoutParams
-
-                    android.util.Log.d("SmileBanner", "ACTION_MOVE: Updated expandable area height to $newHeight")
-
-                    // Update popup window size to accommodate expansion
-                    popupWindow?.let { popup ->
-                        val newPopupHeight = baseCardHeight + newHeight
-                        android.util.Log.d("SmileBanner", "ACTION_MOVE: Updating popup height to $newPopupHeight (baseCard=$baseCardHeight + expandable=$newHeight)")
-                        popup.update(
-                            popup.width,
-                            newPopupHeight.coerceAtMost(screenHeight)
-                        )
-                    }
-
-                    // Update initialY for smooth continuous dragging
-                    initialY = event.rawY
-
-                    true
-                }
-                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
-                    val currentHeight = expandableArea.height
-                    val snapThreshold = 180 // Pixels to trigger full screen expansion
-
-                    android.util.Log.d("SmileBanner", "ACTION_UP: currentHeight=$currentHeight, snapThreshold=$snapThreshold, isExpanded=$isExpanded")
-
-                    when {
-                        // If expanded beyond threshold, gracefully animate to full screen
-                        currentHeight > snapThreshold && !isExpanded -> {
-                            android.util.Log.d("SmileBanner", "ACTION_UP: Expanding to full screen (dragged past threshold)")
-                            expandToFullScreen(expandableArea, card)
-                        }
-                        // If already fully expanded and user dragged down significantly, allow collapse
-                        isExpanded && currentHeight < screenHeight / 2 -> {
-                            android.util.Log.d("SmileBanner", "ACTION_UP: Collapsing from full screen")
-                            collapseToZero(expandableArea, expandableContent, card)
-                        }
-                        // If height is below threshold, collapse back to 0
-                        currentHeight <= snapThreshold && currentHeight > 0 -> {
-                            android.util.Log.d("SmileBanner", "ACTION_UP: Collapsing to 0 (below threshold)")
-                            collapseToZero(expandableArea, expandableContent, card)
-                        }
-                        else -> {
-                            android.util.Log.d("SmileBanner", "ACTION_UP: No action taken")
-                        }
-                    }
-                    true
-                }
-                else -> {
-                    android.util.Log.d("SmileBanner", "Touch event: action=${event.action} (unknown)")
-                    false
-                }
-            }
-        }
-    }
-
     private fun collapseToZero(expandableArea: ViewGroup?, expandableContent: ViewGroup?, card: CardView?) {
         if (expandableArea == null || card == null) return
 
@@ -1239,36 +1110,6 @@ class SmileBanner private constructor(
             })
             start()
         }
-    }
-
-    private fun expandExpandable(expandableContent: ViewGroup?) {
-        isExpanded = true
-
-        // Cancel auto-dismiss when expanded
-        autoDismissJob?.cancel()
-
-        expandableContent?.visibility = View.VISIBLE
-        expandableContent?.alpha = 0f
-        expandableContent?.animate()
-            ?.alpha(1f)
-            ?.setDuration(200)
-            ?.withEndAction {
-                // Focus input and show keyboard after animation
-                val expandableInput = bannerView?.findViewById<android.widget.EditText>(R.id.bannerExpandableInput)
-                expandableInput?.requestFocus()
-
-                // Show keyboard
-                val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
-                imm?.showSoftInput(expandableInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
-            }
-            ?.start()
-    }
-
-    private fun collapseExpandable(expandableContent: ViewGroup?) {
-        // Delegate to the new collapseToZero method
-        val expandableArea = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableArea)
-        val card = bannerView?.findViewById<CardView>(R.id.bannerCard)
-        collapseToZero(expandableArea, expandableContent, card)
     }
 
     /**
