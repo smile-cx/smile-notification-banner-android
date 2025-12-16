@@ -5,4 +5,5 @@
     <string name="smile_banner_info_default">Information</string>
     <string name="smile_banner_warning_default">Warning!</string>
     <string name="smile_banner_error_default">Error!</string>
+    <string name="smile_banner_send_default">Send</string>
 </resources>
