@@ -5,6 +5,12 @@
         <item name="android:windowExitAnimation">@anim/smile_banner_slide_out_top</item>
     </style>
 
+    <!-- Stacking animation for multiple banner transitions -->
+    <style name="SmileBannerAnimationTopShort" parent="android:Animation">
+        <item name="android:windowEnterAnimation">@anim/smile_banner_slide_in_top_push_up</item>
+        <item name="android:windowExitAnimation">@anim/smile_banner_push_up_exit</item>
+    </style>
+
     <style name="SmileBannerAnimationBottom" parent="android:Animation">
         <item name="android:windowEnterAnimation">@anim/smile_banner_slide_in_bottom</item>
         <item name="android:windowExitAnimation">@anim/smile_banner_slide_out_bottom</item>

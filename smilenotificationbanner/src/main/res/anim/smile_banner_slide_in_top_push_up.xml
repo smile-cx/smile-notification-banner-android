@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<set xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Entire animation: Smooth slide down from top (350ms total) - ease in/out -->
+    <!-- Banner background is visible from start, content fades in via code after 150ms -->
+    <translate
+        android:duration="350"
+        android:fromYDelta="-100%"
+        android:toYDelta="0%"
+        android:interpolator="@android:anim/accelerate_decelerate_interpolator" />
+</set>

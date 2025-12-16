@@ -49,27 +49,6 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/title_positions"
-            android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6"
-            android:layout_marginBottom="8dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnTop"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/btn_top"
-            android:layout_marginBottom="8dp" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnBottom"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/btn_bottom"
-            android:layout_marginBottom="16dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
             android:text="@string/title_duration"
             android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6"
             android:layout_marginBottom="8dp" />
@@ -191,6 +170,22 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/btn_expandable_banner"
+            android:layout_marginBottom="8dp" />
+
+        <!-- Debug Section -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="DEBUG"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDebugLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Debug Layout (Colored Sections)"
             android:layout_marginBottom="8dp" />
 
     </LinearLayout>

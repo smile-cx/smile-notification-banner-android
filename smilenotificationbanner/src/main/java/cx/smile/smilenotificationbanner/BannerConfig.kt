@@ -18,7 +18,6 @@ internal data class BannerConfig(
     @StringRes val titleRes: Int? = null,
     val message: String? = null,
     @StringRes val messageRes: Int? = null,
-    val position: BannerPosition = BannerPosition.TOP,
     val duration: Long = 0L, // 0 means no auto-dismiss
     val dismissible: Boolean = true,
     @LayoutRes val customLayout: Int? = null,
@@ -29,6 +28,8 @@ internal data class BannerConfig(
     @DrawableRes val icon: Int? = null,
     val onBannerClick: ((View) -> Unit)? = null,
     val onDismiss: (() -> Unit)? = null,
+    val onShowAnimationComplete: (() -> Unit)? = null, // Callback when entrance animation completes
+    val onDismissAnimationComplete: (() -> Unit)? = null, // Callback when dismiss animation completes
     val vibrationDuration: VibrationDuration = VibrationDuration.NONE,
     // Left side configuration (priority: leftView > leftImageUrl > leftImage > icon)
     val leftView: View? = null,

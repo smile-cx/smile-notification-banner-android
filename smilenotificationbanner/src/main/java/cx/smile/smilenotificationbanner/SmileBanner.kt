@@ -46,13 +46,81 @@ class SmileBanner private constructor(
     private var isExpanded = false
     private var originalStatusBarColor: Int? = null
     private var originalSystemUiVisibility: Int? = null
+    private var isReplacingBanner = false
+    private var showDelay = 0L
+    private var isQueued = false // If true, this banner is in the queue and shouldn't show until dequeued
+
+    // Cached view references for performance
+    private var titleView: TextView? = null
+    private var messageView: TextView? = null
+    private var leftContainerView: ViewGroup? = null
+    private var rightContainerView: ViewGroup? = null
+    private var dragIndicatorView: View? = null
 
     companion object {
         @Volatile
         private var currentBanner: SmileBanner? = null
 
-        // Queue for pending notifications when current banner is expanded
+        // Queue for pending notifications
         private val pendingQueue = mutableListOf<Pair<Activity, BannerConfig>>()
+
+        // Maximum queue size - like WhatsApp, we only keep the most recent notification(s)
+        // When queue is full, oldest is removed and newest is added (rotation)
+        private const val MAX_QUEUE_SIZE = 1
+
+        // Minimum time between banner transitions to avoid too-fast animations (milliseconds)
+        private const val MIN_TRANSITION_DELAY = 200L
+        private var lastBannerShowTime = 0L
+
+        // Minimum time a banner should be displayed before showing the next one (milliseconds)
+        // This prevents rapid-fire banner replacements when multiple are queued
+        private const val MIN_DISPLAY_TIME = 1000L // 1 second
+
+        /**
+         * Add a banner to the queue with rotation (removes oldest if queue is full)
+         * Like WhatsApp, we only keep the most recent notification(s)
+         * Also schedules queue processing if not already scheduled
+         */
+        private fun addToQueue(activity: Activity, config: BannerConfig) {
+            // If queue is at max size, remove the oldest
+            if (pendingQueue.size >= MAX_QUEUE_SIZE) {
+                val removed = pendingQueue.removeAt(0)
+                android.util.Log.d("SmileBanner", "Queue full (max: $MAX_QUEUE_SIZE), removing oldest banner to make room")
+            }
+
+            // Check if this is the first item being added to an empty queue
+            val wasEmpty = pendingQueue.isEmpty()
+
+            pendingQueue.add(Pair(activity, config))
+            android.util.Log.d("SmileBanner", "Added to queue (size: ${pendingQueue.size}/$MAX_QUEUE_SIZE)")
+
+            // If queue was empty and now has an item, schedule processing
+            // This handles the case where a banner is showing without auto-dismiss
+            // and a new banner comes in later
+            if (wasEmpty && currentBanner != null) {
+                val currentTime = System.currentTimeMillis()
+                val timeShown = currentTime - lastBannerShowTime
+
+                // Calculate delay: time remaining until MIN_DISPLAY_TIME + transition delay
+                val minDisplayRemaining = if (timeShown < MIN_DISPLAY_TIME) {
+                    MIN_DISPLAY_TIME - timeShown
+                } else {
+                    0L
+                }
+                val transitionDelay = 300L
+                val totalDelay = minDisplayRemaining + transitionDelay
+
+                android.util.Log.d("SmileBanner", "Scheduling queue processing in ${totalDelay}ms (timeShown=${timeShown}ms)")
+
+                // Schedule processing of the queue
+                currentBanner?.bannerView?.postDelayed({
+                    if (currentBanner != null && pendingQueue.isNotEmpty()) {
+                        android.util.Log.d("SmileBanner", "Processing next banner from queue (triggered by addToQueue)")
+                        processNextInQueue()
+                    }
+                }, totalDelay)
+            }
+        }
 
         /**
          * Create a banner builder for chaining configuration
@@ -66,20 +134,84 @@ class SmileBanner private constructor(
 
         /**
          * Internal method to create SmileBanner from config
+         * @param fromQueue If true, bypass queueing logic (used when processing from queue)
          */
-        private fun create(activity: Activity, config: BannerConfig): SmileBanner {
-            // If current banner is expanded, queue this notification instead of dismissing
-            if (currentBanner?.isExpanded == true) {
-                pendingQueue.add(Pair(activity, config))
-                // Return a dummy banner that won't show
-                return SmileBanner(activity, config)
+        private fun create(activity: Activity, config: BannerConfig, fromQueue: Boolean = false): SmileBanner {
+            // When processing from queue, skip all queueing logic
+            if (!fromQueue) {
+                // If current banner is expanded, queue this notification instead of dismissing
+                if (currentBanner?.isExpanded == true) {
+                    android.util.Log.d("SmileBanner", "Current banner is expanded, queueing new banner")
+                    addToQueue(activity, config)
+                    // Return a dummy banner that won't show - mark it as queued
+                    val dummyBanner = SmileBanner(activity, config)
+                    dummyBanner.isQueued = true
+                    return dummyBanner
+                }
+
+                // If there's a current banner showing and we have pending banners in queue,
+                // queue this one too to maintain order
+                if (currentBanner != null && pendingQueue.isNotEmpty()) {
+                    android.util.Log.d("SmileBanner", "Banner is showing and queue is not empty, queueing new banner")
+                    addToQueue(activity, config)
+                    // Return a dummy banner that won't show - mark it as queued
+                    val dummyBanner = SmileBanner(activity, config)
+                    dummyBanner.isQueued = true
+                    return dummyBanner
+                }
+
+                // If there's a current banner but queue is empty, check if we should queue or replace
+                if (currentBanner != null) {
+                    // Calculate how long the current banner has been shown
+                    val currentTime = System.currentTimeMillis()
+                    val timeShown = currentTime - lastBannerShowTime
+
+                    // If current banner hasn't been shown for minimum display time yet, queue this one
+                    if (timeShown < MIN_DISPLAY_TIME) {
+                        android.util.Log.d("SmileBanner", "Current banner shown for ${timeShown}ms (min: ${MIN_DISPLAY_TIME}ms), queueing new banner")
+                        addToQueue(activity, config)
+                        // Return a dummy banner that won't show - mark it as queued
+                        val dummyBanner = SmileBanner(activity, config)
+                        dummyBanner.isQueued = true
+                        return dummyBanner
+                    }
+                    // Otherwise, allow replacement (banner has been shown long enough)
+                    android.util.Log.d("SmileBanner", "Current banner shown for ${timeShown}ms, allowing replacement")
+                }
             }
 
-            // Dismiss any existing banner instantly (without animation)
-            currentBanner?.dismissInstant()
+            // Check if we're replacing an existing banner
+            val hasExistingBanner = currentBanner != null
 
+            // Calculate time since last banner was shown
+            val currentTime = System.currentTimeMillis()
+            val timeSinceLastShow = currentTime - lastBannerShowTime
+
+            // If not enough time has passed, add a small delay
+            val delayNeeded = if (hasExistingBanner && timeSinceLastShow < MIN_TRANSITION_DELAY) {
+                MIN_TRANSITION_DELAY - timeSinceLastShow
+            } else {
+                0L
+            }
+
+            // Create new banner instance first to measure its height
             val banner = SmileBanner(activity, config)
+            banner.isReplacingBanner = hasExistingBanner
+
+            // If replacing, measure new banner height and animate old banner to match
+            // Pass delayNeeded so height animation starts when new banner appears
+            if (hasExistingBanner) {
+                val newHeight = banner.measureBannerHeight()
+                currentBanner?.dismissWithFade(newHeight, delayNeeded)
+            }
+
+            // Store delay for use when showing
+            if (delayNeeded > 0) {
+                android.util.Log.d("SmileBanner", "Will delay banner show by ${delayNeeded}ms to avoid too-fast transition")
+            }
+
             currentBanner = banner
+            banner.showDelay = delayNeeded
             return banner
         }
 
@@ -89,7 +221,8 @@ class SmileBanner private constructor(
         private fun processNextInQueue() {
             if (pendingQueue.isNotEmpty()) {
                 val (activity, config) = pendingQueue.removeAt(0)
-                create(activity, config).show()
+                android.util.Log.d("SmileBanner", "Dequeued banner from queue, ${pendingQueue.size} remaining")
+                create(activity, config, fromQueue = true).show()
             }
         }
 
@@ -98,21 +231,17 @@ class SmileBanner private constructor(
          * @param activity The activity to display the banner in
          * @param type The banner type (SUCCESS, INFO, WARNING, ERROR)
          * @param message The message to display
-         * @param position The position (TOP or BOTTOM)
          * @return SmileBanner instance
          */
         @JvmStatic
-        @JvmOverloads
         fun show(
             activity: Activity,
             type: BannerType,
-            message: String,
-            position: BannerPosition = BannerPosition.TOP
+            message: String
         ): SmileBanner {
             val config = BannerConfig(
                 type = type,
-                message = message,
-                position = position
+                message = message
             )
             return create(activity, config).apply { show() }
         }
@@ -122,23 +251,19 @@ class SmileBanner private constructor(
          * @param activity The activity to display the banner in
          * @param type The banner type
          * @param message The message to display
-         * @param position The position
          * @param duration Duration in milliseconds before auto-dismiss
          * @return SmileBanner instance
          */
         @JvmStatic
-        @JvmOverloads
         fun show(
             activity: Activity,
             type: BannerType,
             message: String,
-            position: BannerPosition = BannerPosition.TOP,
             duration: Long
         ): SmileBanner {
             val config = BannerConfig(
                 type = type,
                 message = message,
-                position = position,
                 duration = duration
             )
             return create(activity, config).apply { show() }
@@ -157,10 +282,30 @@ class SmileBanner private constructor(
      * Show the banner
      */
     fun show() {
+        // If this banner is queued, don't show it - it will show when dequeued
+        if (isQueued) {
+            android.util.Log.d("SmileBanner", "Banner is queued, not showing until dequeued")
+            return
+        }
+
         if (activity.isFinishing || activity.isDestroyed) {
             return
         }
 
+        // Apply delay if needed to avoid too-fast transitions
+        if (showDelay > 0) {
+            scope.launch {
+                delay(showDelay)
+                lastBannerShowTime = System.currentTimeMillis()
+                showInternal()
+            }
+        } else {
+            lastBannerShowTime = System.currentTimeMillis()
+            showInternal()
+        }
+    }
+
+    private fun showInternal() {
         activity.runOnUiThread {
             try {
                 setupBannerView()
@@ -183,11 +328,39 @@ class SmileBanner private constructor(
         popupWindow?.dismiss()
         popupWindow = null
         bannerView = null
+
+        // Clear cached view references to prevent memory leaks
+        titleView = null
+        messageView = null
+        leftContainerView = null
+        rightContainerView = null
+        dragIndicatorView = null
+
         val wasCurrent = currentBanner == this
         if (wasCurrent) {
             currentBanner = null
         }
-        config.onDismiss?.invoke()
+
+        // Call developer's callbacks asynchronously so they don't block
+        config.onDismiss?.let { callback ->
+            scope.launch {
+                try {
+                    callback.invoke()
+                } catch (e: Exception) {
+                    android.util.Log.e("SmileBanner", "Error in developer's onDismiss callback", e)
+                }
+            }
+        }
+
+        config.onDismissAnimationComplete?.let { callback ->
+            scope.launch {
+                try {
+                    callback.invoke()
+                } catch (e: Exception) {
+                    android.util.Log.e("SmileBanner", "Error in developer's onDismissAnimationComplete callback", e)
+                }
+            }
+        }
 
         // Process next notification in queue if this was the current banner
         if (wasCurrent) {
@@ -196,20 +369,68 @@ class SmileBanner private constructor(
     }
 
     /**
-     * Dismiss the banner instantly without animation
-     * Used internally when showing a new banner
+     * Dismiss the banner with delay to let new banner cover it
+     * Used internally when showing a new banner to replace this one
+     * @param targetHeight Optional target height to animate to before dismissal
+     * @param animationDelay Delay before starting height animation (to sync with new banner appearance)
      */
-    private fun dismissInstant() {
+    private fun dismissWithFade(targetHeight: Int? = null, animationDelay: Long = 0L) {
         autoDismissJob?.cancel()
-        // Disable animation before dismissing
-        popupWindow?.animationStyle = 0
-        popupWindow?.dismiss()
-        popupWindow = null
-        bannerView = null
-        if (currentBanner == this) {
-            currentBanner = null
+
+        // If target height provided, animate the banner to match new banner's height
+        // Delay the animation to sync with when new banner actually appears
+        if (targetHeight != null) {
+            if (animationDelay > 0) {
+                scope.launch {
+                    delay(animationDelay)
+                    animateHeightChange(targetHeight)
+                }
+            } else {
+                animateHeightChange(targetHeight)
+            }
         }
-        config.onDismiss?.invoke()
+
+        // Wait for push-up animation to complete (350ms total)
+        val dismissDelay = 300L
+
+        // Delay dismissal so new banner can slide in over this one
+        scope.launch {
+            delay(dismissDelay)
+            restoreStatusBarColor()
+            // Disable animation for clean removal once covered
+            popupWindow?.animationStyle = 0
+            popupWindow?.dismiss()
+            popupWindow = null
+            bannerView = null
+
+            // Clear cached view references to prevent memory leaks
+            titleView = null
+            messageView = null
+            leftContainerView = null
+            rightContainerView = null
+            dragIndicatorView = null
+
+            // Call developer's callbacks asynchronously so they don't block
+            config.onDismiss?.let { callback ->
+                scope.launch {
+                    try {
+                        callback.invoke()
+                    } catch (e: Exception) {
+                        android.util.Log.e("SmileBanner", "Error in developer's onDismiss callback", e)
+                    }
+                }
+            }
+
+            config.onDismissAnimationComplete?.let { callback ->
+                scope.launch {
+                    try {
+                        callback.invoke()
+                    } catch (e: Exception) {
+                        android.util.Log.e("SmileBanner", "Error in developer's onDismissAnimationComplete callback", e)
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -218,9 +439,108 @@ class SmileBanner private constructor(
      */
     fun getBannerView(): View? = bannerView
 
+    /**
+     * Get all content views that need to be animated
+     */
+    private fun getContentViews(): List<View?> {
+        return listOf(titleView, messageView, leftContainerView, rightContainerView, dragIndicatorView)
+    }
+
+    /**
+     * Measure the height of this banner before showing it
+     * @return The measured height in pixels
+     */
+    private fun measureBannerHeight(): Int {
+        // Inflate the banner view if not already done
+        if (bannerView == null) {
+            setupBannerView()
+        }
+
+        val view = bannerView ?: return 0
+
+        // Apply system bar padding to get accurate measurement
+        applySystemBarPadding()
+
+        // Get screen width for accurate measurement
+        val displayMetrics = activity.resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+
+        // Measure the view with screen width
+        view.measure(
+            View.MeasureSpec.makeMeasureSpec(screenWidth, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+
+        return view.measuredHeight
+    }
+
+    /**
+     * Animate the banner's height to a target height
+     * Only shrinks - does not expand (only animates when old banner is taller)
+     * @param targetHeight The target height in pixels
+     */
+    private fun animateHeightChange(targetHeight: Int) {
+        val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
+        val currentHeight = card.height
+
+        if (currentHeight == targetHeight || currentHeight == 0) {
+            return
+        }
+
+        // Only animate if shrinking (current is taller than target)
+        // Don't expand old banner when new banner is taller
+        if (currentHeight <= targetHeight) {
+            android.util.Log.d("SmileBanner", "Skipping height animation - new banner is same size or taller ($currentHeight -> $targetHeight)")
+            return
+        }
+
+        android.util.Log.d("SmileBanner", "Animating height shrink from $currentHeight to $targetHeight")
+
+        // Animate the card height (shrinking)
+        android.animation.ValueAnimator.ofInt(currentHeight, targetHeight).apply {
+            duration = 300L // Match the dismissal animation duration
+            interpolator = android.view.animation.AccelerateDecelerateInterpolator()
+            addUpdateListener { animator ->
+                val value = animator.animatedValue as Int
+                popupWindow?.update(
+                    popupWindow?.width ?: ViewGroup.LayoutParams.MATCH_PARENT,
+                    value
+                )
+            }
+            start()
+        }
+    }
+
+    /**
+     * Hide banner content (title, message, icons, drag indicator) by setting alpha to 0
+     */
+    private fun hideBannerContent() {
+        getContentViews().forEach { it?.alpha = 0f }
+    }
+
+    /**
+     * Fade in banner content (title, message, icons, drag indicator)
+     * @param duration Animation duration in milliseconds
+     */
+    private fun fadeInBannerContent(duration: Long) {
+        getContentViews().forEach { it?.animate()?.alpha(1f)?.setDuration(duration)?.start() }
+    }
+
     private fun setupBannerView() {
+        // Skip if view is already set up (e.g., for measurement)
+        if (bannerView != null) {
+            return
+        }
+
         val layoutRes = config.customLayout ?: R.layout.smile_banner_default
         bannerView = LayoutInflater.from(activity).inflate(layoutRes, null)
+
+        // Cache view references for performance
+        titleView = bannerView?.findViewById(R.id.bannerTitle)
+        messageView = bannerView?.findViewById(R.id.bannerMessage)
+        leftContainerView = bannerView?.findViewById(R.id.bannerLeftContainer)
+        rightContainerView = bannerView?.findViewById(R.id.bannerRightContainer)
+        dragIndicatorView = bannerView?.findViewById(R.id.bannerDragIndicator)
 
         if (config.customLayout == null) {
             configurDefaultBanner()
@@ -238,8 +558,6 @@ class SmileBanner private constructor(
     private fun applySystemBarPadding() {
         val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
         val container = bannerView?.findViewById<ViewGroup>(R.id.bannerContainer) ?: return
-
-        if (config.position != BannerPosition.TOP) return
 
         val rootView = activity.findViewById<View>(android.R.id.content)
         var topInset = 0
@@ -280,13 +598,10 @@ class SmileBanner private constructor(
             // Remove top corner radius for flush appearance
             card.radius = 0f
 
-            // Add top padding to push content below status bar and cutout
-            container.setPadding(
-                container.paddingLeft,
-                topInset,
-                container.paddingRight,
-                container.paddingBottom
-            )
+            // Set height of top spacer view to push content below status bar and cutout
+            val topSpacer = bannerView?.findViewById<View>(R.id.bannerTopSpacer)
+            topSpacer?.layoutParams?.height = topInset
+            topSpacer?.requestLayout()
 
             // Calculate and set minimum height on the card to cover both status bar and action bar
             // Total coverage needed = topInset + actionBarHeight
@@ -309,12 +624,10 @@ class SmileBanner private constructor(
     }
 
     /**
-     * Configure status bar appearance for TOP positioned banners
+     * Configure status bar appearance
      * Makes status bar transparent and adjusts icon colors based on banner brightness
      */
     private fun applyStatusBarColor() {
-        if (config.position != BannerPosition.TOP) return
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             val window = activity.window
             val decorView = window.decorView
@@ -535,17 +848,41 @@ class SmileBanner private constructor(
     }
 
     private fun setupExpandable(textColor: Int) {
+        android.util.Log.d("SmileBanner", "setupExpandable called - expandable: ${config.expandable}")
+
         if (!config.expandable) {
+            android.util.Log.d("SmileBanner", "setupExpandable: banner is not expandable, returning")
             return
         }
 
         val dragIndicator = bannerView?.findViewById<View>(R.id.bannerDragIndicator)
+        val expandableArea = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableArea)
         val expandableContent = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableContent)
         val expandableInput = bannerView?.findViewById<android.widget.EditText>(R.id.bannerExpandableInput)
         val expandableButton = bannerView?.findViewById<android.widget.Button>(R.id.bannerExpandableButton)
 
-        // Show drag indicator
+        android.util.Log.d("SmileBanner", "setupExpandable: dragIndicator=$dragIndicator, expandableArea=$expandableArea, expandableContent=$expandableContent")
+
+        // Start expandable area at height 0 (completely collapsed)
+        expandableArea?.let { area ->
+            area.visibility = View.VISIBLE
+            area.layoutParams?.height = 0
+            area.requestLayout()
+            android.util.Log.d("SmileBanner", "setupExpandable: set expandableArea height to 0 (collapsed)")
+        }
+
+        // Hide the expandable content initially (input + button)
+        expandableContent?.visibility = View.GONE
+        android.util.Log.d("SmileBanner", "setupExpandable: hidden expandableContent")
+
+        // Show drag indicator (positioned outside expandable area, so it's visible even when area is height 0)
         dragIndicator?.visibility = View.VISIBLE
+        android.util.Log.d("SmileBanner", "setupExpandable: showing drag indicator")
+
+        // Apply text color to input and button
+        expandableInput?.setTextColor(textColor)
+        expandableInput?.setHintTextColor(textColor)
+        expandableButton?.setTextColor(textColor)
 
         // Set hint text
         when {
@@ -561,18 +898,28 @@ class SmileBanner private constructor(
             else -> expandableButton?.text = "Send"
         }
 
-        // Setup drag-to-expand
-        setupDragToExpand(dragIndicator, expandableContent)
+        // Note: Drag-to-expand is now handled by the container's touch listener
+        // The drag indicator serves as a visual affordance only
 
         // Setup submit action for both button and keyboard
         val submitAction = {
             val text = expandableInput?.text?.toString() ?: ""
+            android.util.Log.d("SmileBanner", "Submit action triggered with text: '$text'")
+
             if (text.isNotBlank()) {
+                android.util.Log.d("SmileBanner", "Text is not blank, invoking onExpandableSubmit callback")
                 config.onExpandableSubmit?.invoke(text)
                 expandableInput?.text?.clear()
-                // Collapse and dismiss to process queue
-                collapseExpandable(expandableContent)
-                dismiss()
+
+                // Hide keyboard first
+                val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                imm?.hideSoftInputFromWindow(expandableInput?.windowToken, 0)
+
+                // Animate roll-up and dismiss
+                android.util.Log.d("SmileBanner", "Starting roll-up animation")
+                animateRollUpAndDismiss()
+            } else {
+                android.util.Log.d("SmileBanner", "Text is blank, not submitting")
             }
         }
 
@@ -593,29 +940,247 @@ class SmileBanner private constructor(
     }
 
     private fun setupDragToExpand(dragIndicator: View?, expandableContent: ViewGroup?) {
-        if (dragIndicator == null || expandableContent == null) return
+        android.util.Log.d("SmileBanner", "setupDragToExpand called - dragIndicator: $dragIndicator, expandableContent: $expandableContent")
+
+        if (dragIndicator == null || expandableContent == null) {
+            android.util.Log.e("SmileBanner", "setupDragToExpand: dragIndicator or expandableContent is null")
+            return
+        }
+
+        val expandableArea = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableArea)
+        val card = bannerView?.findViewById<CardView>(R.id.bannerCard)
+        val container = bannerView?.findViewById<ViewGroup>(R.id.bannerContainer)
+
+        android.util.Log.d("SmileBanner", "setupDragToExpand - expandableArea: $expandableArea, card: $card, container: $container")
+
+        if (expandableArea == null || card == null || container == null) {
+            android.util.Log.e("SmileBanner", "setupDragToExpand: expandableArea, card, or container is null")
+            return
+        }
 
         var initialY = 0f
+        var baseCardHeight = 0 // Card height without expandable area
+        var screenHeight = 0
+
+        android.util.Log.d("SmileBanner", "Setting touch listener on drag indicator")
 
         dragIndicator.setOnTouchListener { view, event ->
+            android.util.Log.d("SmileBanner", "Drag indicator touch event: action=${event.action}, rawY=${event.rawY}")
+
             when (event.action) {
                 android.view.MotionEvent.ACTION_DOWN -> {
                     initialY = event.rawY
+                    // Calculate base card height (without current expandable area height)
+                    baseCardHeight = card.height - expandableArea.height
+
+                    // Get screen height for full expansion calculation
+                    val displayMetrics = activity.resources.displayMetrics
+                    screenHeight = displayMetrics.heightPixels
+
+                    android.util.Log.d("SmileBanner", "ACTION_DOWN: initialY=$initialY, baseCardHeight=$baseCardHeight, currentExpandableHeight=${expandableArea.height}, screenHeight=$screenHeight")
                     true
                 }
                 android.view.MotionEvent.ACTION_MOVE -> {
                     val deltaY = event.rawY - initialY
-                    if (deltaY > 50 && !isExpanded) {
-                        // Dragged down enough, expand
-                        expandExpandable(expandableContent)
+                    val currentHeight = expandableArea.height
+
+                    android.util.Log.d("SmileBanner", "ACTION_MOVE: deltaY=$deltaY, currentHeight=$currentHeight")
+
+                    // Allow both downward drag (expand) and upward drag (collapse)
+                    // Start from 0, can grow as much as needed
+                    val newHeight = (currentHeight + deltaY.toInt()).coerceAtLeast(0)
+
+                    android.util.Log.d("SmileBanner", "ACTION_MOVE: newHeight=$newHeight")
+
+                    // Show expandable content when height exceeds a threshold (enough space to show input)
+                    val contentShowThreshold = 60 // Show content after expanding 60px
+                    if (newHeight > contentShowThreshold) {
+                        if (expandableContent.visibility != View.VISIBLE) {
+                            android.util.Log.d("SmileBanner", "ACTION_MOVE: Showing expandable content (height > $contentShowThreshold)")
+                            expandableContent.visibility = View.VISIBLE
+                        }
+                    } else {
+                        if (expandableContent.visibility != View.GONE) {
+                            android.util.Log.d("SmileBanner", "ACTION_MOVE: Hiding expandable content (height <= $contentShowThreshold)")
+                            expandableContent.visibility = View.GONE
+                        }
+                    }
+
+                    // Update expandable area height
+                    val layoutParams = expandableArea.layoutParams
+                    layoutParams.height = newHeight
+                    expandableArea.layoutParams = layoutParams
+
+                    android.util.Log.d("SmileBanner", "ACTION_MOVE: Updated expandable area height to $newHeight")
+
+                    // Update popup window size to accommodate expansion
+                    popupWindow?.let { popup ->
+                        val newPopupHeight = baseCardHeight + newHeight
+                        android.util.Log.d("SmileBanner", "ACTION_MOVE: Updating popup height to $newPopupHeight (baseCard=$baseCardHeight + expandable=$newHeight)")
+                        popup.update(
+                            popup.width,
+                            newPopupHeight.coerceAtMost(screenHeight)
+                        )
+                    }
+
+                    // Update initialY for smooth continuous dragging
+                    initialY = event.rawY
+
+                    true
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    val currentHeight = expandableArea.height
+                    val snapThreshold = 180 // Pixels to trigger full screen expansion
+
+                    android.util.Log.d("SmileBanner", "ACTION_UP: currentHeight=$currentHeight, snapThreshold=$snapThreshold, isExpanded=$isExpanded")
+
+                    when {
+                        // If expanded beyond threshold, gracefully animate to full screen
+                        currentHeight > snapThreshold && !isExpanded -> {
+                            android.util.Log.d("SmileBanner", "ACTION_UP: Expanding to full screen (dragged past threshold)")
+                            expandToFullScreen(expandableArea, card)
+                        }
+                        // If already fully expanded and user dragged down significantly, allow collapse
+                        isExpanded && currentHeight < screenHeight / 2 -> {
+                            android.util.Log.d("SmileBanner", "ACTION_UP: Collapsing from full screen")
+                            collapseToZero(expandableArea, expandableContent, card)
+                        }
+                        // If height is below threshold, collapse back to 0
+                        currentHeight <= snapThreshold && currentHeight > 0 -> {
+                            android.util.Log.d("SmileBanner", "ACTION_UP: Collapsing to 0 (below threshold)")
+                            collapseToZero(expandableArea, expandableContent, card)
+                        }
+                        else -> {
+                            android.util.Log.d("SmileBanner", "ACTION_UP: No action taken")
+                        }
                     }
                     true
                 }
-                android.view.MotionEvent.ACTION_UP -> {
-                    true
+                else -> {
+                    android.util.Log.d("SmileBanner", "Touch event: action=${event.action} (unknown)")
+                    false
                 }
-                else -> false
             }
+        }
+    }
+
+    private fun collapseToZero(expandableArea: ViewGroup?, expandableContent: ViewGroup?, card: CardView?) {
+        if (expandableArea == null || card == null) return
+
+        isExpanded = false
+
+        // Restore PopupWindow to non-focusable for swipe gestures
+        popupWindow?.isFocusable = false
+        popupWindow?.update()
+
+        android.util.Log.d("SmileBanner", "collapseToZero: collapsing from ${expandableArea.height} to 0")
+
+        // Hide keyboard if open
+        val expandableInput = bannerView?.findViewById<android.widget.EditText>(R.id.bannerExpandableInput)
+        expandableInput?.let { input ->
+            val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+            imm?.hideSoftInputFromWindow(input.windowToken, 0)
+        }
+
+        // Calculate base card height
+        val baseCardHeight = card.height - expandableArea.height
+
+        // Animate back to 0 (fully collapsed)
+        val currentHeight = expandableArea.height
+        android.animation.ValueAnimator.ofInt(currentHeight, 0).apply {
+            duration = 200
+            addUpdateListener { animator ->
+                val value = animator.animatedValue as Int
+                val layoutParams = expandableArea.layoutParams
+                layoutParams.height = value
+                expandableArea.layoutParams = layoutParams
+
+                // Update popup window size
+                popupWindow?.update(
+                    popupWindow?.width ?: ViewGroup.LayoutParams.MATCH_PARENT,
+                    baseCardHeight + value
+                )
+            }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    expandableContent?.visibility = View.GONE
+                    android.util.Log.d("SmileBanner", "collapseToZero: animation complete, expandable area now at height 0")
+                }
+            })
+            start()
+        }
+    }
+
+    private fun expandToFullScreen(expandableArea: ViewGroup?, card: CardView?) {
+        if (expandableArea == null || card == null) return
+
+        isExpanded = true
+
+        // Cancel auto-dismiss when expanded
+        autoDismissJob?.cancel()
+
+        // Make PopupWindow focusable and set input method mode to accept keyboard input
+        popupWindow?.isFocusable = true
+        popupWindow?.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED)
+        popupWindow?.softInputMode = android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        popupWindow?.update()
+
+        // Show expandable content
+        val expandableContent = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableContent)
+        expandableContent?.visibility = View.VISIBLE
+
+        // Get screen height
+        val displayMetrics = activity.resources.displayMetrics
+        val screenHeight = displayMetrics.heightPixels
+
+        // Calculate base card height (without current expandable area)
+        val baseCardHeight = card.height - expandableArea.height
+
+        // Calculate target height: fill remaining screen space
+        val cardLocation = IntArray(2)
+        card.getLocationOnScreen(cardLocation)
+        val cardTop = cardLocation[1]
+        val targetHeight = screenHeight - cardTop - baseCardHeight
+
+        android.util.Log.d("SmileBanner", "expandToFullScreen: screenHeight=$screenHeight, cardTop=$cardTop, baseCardHeight=$baseCardHeight, targetHeight=$targetHeight")
+
+        // Animate expandable area to full screen
+        val currentHeight = expandableArea.height
+        android.animation.ValueAnimator.ofInt(currentHeight, targetHeight).apply {
+            duration = 300
+            addUpdateListener { animator ->
+                val value = animator.animatedValue as Int
+                val layoutParams = expandableArea.layoutParams
+                layoutParams.height = value
+                expandableArea.layoutParams = layoutParams
+
+                // Update popup window size (base card + expandable area)
+                val totalHeight = baseCardHeight + value
+                android.util.Log.d("SmileBanner", "expandToFullScreen animation: expandableHeight=$value, totalHeight=$totalHeight")
+                popupWindow?.update(
+                    popupWindow?.width ?: ViewGroup.LayoutParams.MATCH_PARENT,
+                    totalHeight.coerceAtMost(screenHeight)
+                )
+            }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    // Focus input and show keyboard after animation
+                    val expandableInput = bannerView?.findViewById<android.widget.EditText>(R.id.bannerExpandableInput)
+
+                    // Post the keyboard request to ensure view is fully attached and laid out
+                    expandableInput?.post {
+                        expandableInput.requestFocus()
+
+                        // Post again with a small delay to ensure the view is "served" by IMM
+                        expandableInput.postDelayed({
+                            val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
+                            android.util.Log.d("SmileBanner", "Requesting keyboard for input: hasFocus=${expandableInput.hasFocus()}, isAttachedToWindow=${expandableInput.isAttachedToWindow}")
+                            imm?.showSoftInput(expandableInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+                        }, 100)
+                    }
+                }
+            })
+            start()
         }
     }
 
@@ -643,56 +1208,177 @@ class SmileBanner private constructor(
     }
 
     private fun collapseExpandable(expandableContent: ViewGroup?) {
-        isExpanded = false
-
-        // Hide keyboard
-        val expandableInput = bannerView?.findViewById<android.widget.EditText>(R.id.bannerExpandableInput)
-        expandableInput?.let { input ->
-            val imm = activity.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as? android.view.inputmethod.InputMethodManager
-            imm?.hideSoftInputFromWindow(input.windowToken, 0)
-        }
-
-        expandableContent?.animate()
-            ?.alpha(0f)
-            ?.setDuration(200)
-            ?.withEndAction {
-                expandableContent.visibility = View.GONE
-            }
-            ?.start()
+        // Delegate to the new collapseToZero method
+        val expandableArea = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableArea)
+        val card = bannerView?.findViewById<CardView>(R.id.bannerCard)
+        collapseToZero(expandableArea, expandableContent, card)
     }
 
     /**
-     * Setup swipe-to-dismiss gesture
-     * For TOP position: swipe up to dismiss
-     * For BOTTOM position: swipe down to dismiss
+     * Animate the banner rolling up and then dismiss
+     * Used when the user submits text in the expandable area
+     */
+    private fun animateRollUpAndDismiss() {
+        val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
+        val expandableArea = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableArea)
+        val expandableContent = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableContent)
+
+        android.util.Log.d("SmileBanner", "animateRollUpAndDismiss: card height=${card.height}, expandableArea height=${expandableArea?.height}")
+
+        // First collapse the expandable area
+        if (expandableArea != null && expandableArea.height > 0) {
+            val baseCardHeight = card.height - expandableArea.height
+            val currentHeight = expandableArea.height
+
+            android.util.Log.d("SmileBanner", "animateRollUpAndDismiss: collapsing from $currentHeight to 0")
+
+            // Animate collapse
+            android.animation.ValueAnimator.ofInt(currentHeight, 0).apply {
+                duration = 200
+                addUpdateListener { animator ->
+                    val value = animator.animatedValue as Int
+                    expandableArea.layoutParams?.height = value
+                    expandableArea.requestLayout()
+
+                    // Update popup window size
+                    popupWindow?.update(
+                        popupWindow?.width ?: ViewGroup.LayoutParams.MATCH_PARENT,
+                        baseCardHeight + value
+                    )
+                }
+                addListener(object : android.animation.AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: android.animation.Animator) {
+                        expandableContent?.visibility = View.GONE
+                        android.util.Log.d("SmileBanner", "animateRollUpAndDismiss: collapse complete, now sliding up")
+                        // After collapse, slide the whole banner up
+                        slideUpAndDismiss(card)
+                    }
+                })
+                start()
+            }
+        } else {
+            // No expandable area or already collapsed, just slide up
+            android.util.Log.d("SmileBanner", "animateRollUpAndDismiss: no expandable area, sliding up directly")
+            slideUpAndDismiss(card)
+        }
+    }
+
+    /**
+     * Slide the card up and dismiss
+     */
+    private fun slideUpAndDismiss(card: CardView) {
+        android.util.Log.d("SmileBanner", "slideUpAndDismiss: animating card up by ${card.height} pixels")
+
+        card.animate()
+            .translationY(-card.height.toFloat())
+            .alpha(0f)
+            .setDuration(250)
+            .withEndAction {
+                android.util.Log.d("SmileBanner", "slideUpAndDismiss: animation complete, calling callback and dismissing")
+
+                // Call developer's callback asynchronously so it doesn't block dismiss
+                config.onDismissAnimationComplete?.let { callback ->
+                    scope.launch {
+                        try {
+                            callback.invoke()
+                        } catch (e: Exception) {
+                            android.util.Log.e("SmileBanner", "Error in developer's onDismissAnimationComplete callback", e)
+                        }
+                    }
+                }
+
+                dismiss()
+            }
+            .start()
+    }
+
+    private sealed class DragDirection {
+        object UpToDismiss : DragDirection()
+        object DownToExpand : DragDirection()
+    }
+
+    /**
+     * Setup swipe gestures
+     * - Swipe up: dismiss banner
+     * - Swipe down: expand (if expandable)
      */
     private fun setupSwipeToDismiss() {
         val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
         val container = bannerView?.findViewById<ViewGroup>(R.id.bannerContainer) ?: return
+        val expandableArea = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableArea)
+
         var initialY = 0f
         var initialX = 0f
         var initialTranslationY = 0f
+        var baseCardHeight = 0
+        var screenHeight = 0
         var isDragging = false
+        var dragDirection: DragDirection? = null // Track committed direction
         var touchStartedOnInteractiveView = false
 
         container.setOnTouchListener { view, event ->
+            android.util.Log.d("SmileBanner", "Container touch event: action=${event.action}, x=${event.x}, y=${event.y}")
+
             when (event.action) {
                 android.view.MotionEvent.ACTION_DOWN -> {
                     initialY = event.rawY
                     initialX = event.rawX
                     initialTranslationY = card.translationY
                     isDragging = false
+                    dragDirection = null
+
+                    // Calculate base card height for expand logic
+                    expandableArea?.let {
+                        baseCardHeight = card.height - it.height
+                    }
+
+                    // Get screen height
+                    val displayMetrics = activity.resources.displayMetrics
+                    screenHeight = displayMetrics.heightPixels
+
+                    // Check if expandable content is visible - if so, check if touch is inside it
+                    val expandableContent = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableContent)
+                    var touchInsideExpandableContent = false
+
+                    if (expandableContent?.visibility == View.VISIBLE) {
+                        // Check if touch coordinates are inside expandable content bounds
+                        val location = IntArray(2)
+                        expandableContent.getLocationInWindow(location)
+                        val containerLocation = IntArray(2)
+                        container.getLocationInWindow(containerLocation)
+
+                        val contentX = location[0] - containerLocation[0]
+                        val contentY = location[1] - containerLocation[1]
+
+                        touchInsideExpandableContent = event.x >= contentX &&
+                                event.x <= contentX + expandableContent.width &&
+                                event.y >= contentY &&
+                                event.y <= contentY + expandableContent.height
+
+                        android.util.Log.d("SmileBanner", "Container ACTION_DOWN: expandableContent visible, touchInside=$touchInsideExpandableContent")
+                    }
 
                     // Check if touch started on an interactive child view
                     val touchedView = findViewAt(container, event.x, event.y)
-                    touchStartedOnInteractiveView = touchedView is android.widget.EditText ||
+                    touchStartedOnInteractiveView = touchInsideExpandableContent ||
+                            touchedView is android.widget.EditText ||
                             touchedView is android.widget.Button
 
+                    android.util.Log.d("SmileBanner", "Container ACTION_DOWN: touchedView=$touchedView, isInteractive=$touchStartedOnInteractiveView")
+
+                    // If touch is on interactive view, request that parent doesn't intercept
+                    if (touchStartedOnInteractiveView) {
+                        container.parent?.requestDisallowInterceptTouchEvent(true)
+                    }
+
                     // Don't consume if on interactive view, let it handle the touch
-                    touchStartedOnInteractiveView.not()
+                    val shouldConsume = touchStartedOnInteractiveView.not()
+                    android.util.Log.d("SmileBanner", "Container ACTION_DOWN: returning $shouldConsume")
+                    shouldConsume
                 }
                 android.view.MotionEvent.ACTION_MOVE -> {
                     if (touchStartedOnInteractiveView) {
+                        android.util.Log.d("SmileBanner", "Container ACTION_MOVE: touch on interactive view, not handling")
                         return@setOnTouchListener false
                     }
 
@@ -701,75 +1387,158 @@ class SmileBanner private constructor(
                     val absDeltaY = kotlin.math.abs(deltaY)
                     val absDeltaX = kotlin.math.abs(deltaX)
 
-                    // Start dragging if moved vertically more than 20 pixels and vertical movement > horizontal
-                    if (absDeltaY > 20 && absDeltaY > absDeltaX) {
-                        isDragging = true
-                    }
+                    android.util.Log.d("SmileBanner", "Container ACTION_MOVE: deltaY=$deltaY, absDeltaY=$absDeltaY, isDragging=$isDragging, direction=$dragDirection")
 
-                    if (isDragging) {
-                        when (config.position) {
-                            BannerPosition.TOP -> {
-                                // Allow only upward swipes (negative deltaY)
-                                if (deltaY < 0) {
-                                    card.translationY = initialTranslationY + deltaY
-                                }
+                    // Detect and commit to drag direction once threshold is crossed
+                    if (!isDragging && absDeltaY > 20 && absDeltaY > absDeltaX) {
+                        isDragging = true
+
+                        // Determine direction and commit
+                        dragDirection = when {
+                            deltaY < 0 -> {
+                                // Upward swipe → dismiss
+                                android.util.Log.d("SmileBanner", "Container ACTION_MOVE: committed to UpToDismiss")
+                                DragDirection.UpToDismiss
                             }
-                            BannerPosition.BOTTOM -> {
-                                // Allow only downward swipes (positive deltaY)
-                                if (deltaY > 0) {
-                                    card.translationY = initialTranslationY + deltaY
-                                }
+                            deltaY > 0 && config.expandable && !isExpanded -> {
+                                // Downward swipe → expand (only if expandable and not already expanded)
+                                android.util.Log.d("SmileBanner", "Container ACTION_MOVE: committed to DownToExpand")
+                                DragDirection.DownToExpand
+                            }
+                            else -> {
+                                android.util.Log.d("SmileBanner", "Container ACTION_MOVE: no valid direction")
+                                null
                             }
                         }
-                        true
-                    } else {
-                        false
+                    }
+
+                    // Execute action based on committed direction
+                    when (dragDirection) {
+                        is DragDirection.UpToDismiss -> {
+                            // Dismiss: move card up
+                            if (deltaY < 0) {
+                                card.translationY = initialTranslationY + deltaY
+                                android.util.Log.d("SmileBanner", "Container ACTION_MOVE: dismissing, translationY=${card.translationY}")
+                            }
+                            true
+                        }
+                        is DragDirection.DownToExpand -> {
+                            // Expand: grow expandable area
+                            expandableArea?.let { area ->
+                                val currentHeight = area.height
+                                val newHeight = (currentHeight + deltaY.toInt()).coerceAtLeast(0)
+
+                                // Show content when height exceeds threshold
+                                val contentShowThreshold = 60
+                                val expandableContent = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableContent)
+                                if (newHeight > contentShowThreshold && expandableContent?.visibility != View.VISIBLE) {
+                                    expandableContent?.visibility = View.VISIBLE
+                                    android.util.Log.d("SmileBanner", "Container ACTION_MOVE: showing expandable content")
+                                }
+
+                                // Update heights
+                                area.layoutParams.height = newHeight
+                                area.requestLayout()
+
+                                popupWindow?.update(
+                                    popupWindow?.width ?: ViewGroup.LayoutParams.MATCH_PARENT,
+                                    (baseCardHeight + newHeight).coerceAtMost(screenHeight)
+                                )
+
+                                android.util.Log.d("SmileBanner", "Container ACTION_MOVE: expanding, newHeight=$newHeight")
+
+                                // Update initialY for continuous dragging
+                                initialY = event.rawY
+                            }
+                            true
+                        }
+                        else -> false
                     }
                 }
                 android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    android.util.Log.d("SmileBanner", "Container ACTION_UP: isDragging=$isDragging, direction=$dragDirection")
+
                     if (touchStartedOnInteractiveView) {
                         return@setOnTouchListener false
                     }
 
                     if (isDragging) {
-                        val deltaY = event.rawY - initialY
-                        val threshold = 100 // pixels to trigger dismiss
+                        when (dragDirection) {
+                            is DragDirection.UpToDismiss -> {
+                                // Complete dismiss action
+                                val deltaY = event.rawY - initialY
+                                val dismissThreshold = 100
 
-                        val shouldDismiss = when (config.position) {
-                            BannerPosition.TOP -> deltaY < -threshold
-                            BannerPosition.BOTTOM -> deltaY > threshold
-                        }
+                                android.util.Log.d("SmileBanner", "Container ACTION_UP: dismiss deltaY=$deltaY, threshold=$dismissThreshold")
 
-                        if (shouldDismiss) {
-                            // Animate out and dismiss
-                            val targetY = when (config.position) {
-                                BannerPosition.TOP -> -card.height.toFloat()
-                                BannerPosition.BOTTOM -> card.height.toFloat()
-                            }
-                            card.animate()
-                                .translationY(targetY)
-                                .alpha(0f)
-                                .setDuration(200)
-                                .withEndAction {
-                                    dismiss()
+                                if (deltaY < -dismissThreshold) {
+                                    // Animate out and dismiss
+                                    android.util.Log.d("SmileBanner", "Container ACTION_UP: dismissing banner")
+                                    card.animate()
+                                        .translationY(-card.height.toFloat())
+                                        .alpha(0f)
+                                        .setDuration(200)
+                                        .withEndAction {
+                                            // Call developer's callback asynchronously so it doesn't block dismiss
+                                            config.onDismissAnimationComplete?.let { callback ->
+                                                scope.launch {
+                                                    try {
+                                                        callback.invoke()
+                                                    } catch (e: Exception) {
+                                                        android.util.Log.e("SmileBanner", "Error in developer's onDismissAnimationComplete callback", e)
+                                                    }
+                                                }
+                                            }
+                                            dismiss()
+                                        }
+                                        .start()
+                                } else {
+                                    // Animate back to original position
+                                    android.util.Log.d("SmileBanner", "Container ACTION_UP: animating back")
+                                    card.animate()
+                                        .translationY(initialTranslationY)
+                                        .setDuration(200)
+                                        .start()
                                 }
-                                .start()
-                        } else {
-                            // Animate back to original position
-                            card.animate()
-                                .translationY(initialTranslationY)
-                                .setDuration(200)
-                                .start()
+                            }
+                            is DragDirection.DownToExpand -> {
+                                // Complete expand action
+                                expandableArea?.let { area ->
+                                    val currentHeight = area.height
+                                    val snapThreshold = 180
+
+                                    android.util.Log.d("SmileBanner", "Container ACTION_UP: expand currentHeight=$currentHeight, threshold=$snapThreshold")
+
+                                    if (currentHeight > snapThreshold) {
+                                        // Snap to full screen
+                                        android.util.Log.d("SmileBanner", "Container ACTION_UP: expanding to full screen")
+                                        expandToFullScreen(area, card)
+                                    } else {
+                                        // Collapse back to 0
+                                        android.util.Log.d("SmileBanner", "Container ACTION_UP: collapsing to 0")
+                                        val expandableContent = bannerView?.findViewById<ViewGroup>(R.id.bannerExpandableContent)
+                                        collapseToZero(area, expandableContent, card)
+                                    }
+                                }
+                            }
+                            else -> {
+                                android.util.Log.d("SmileBanner", "Container ACTION_UP: no action")
+                            }
                         }
                         isDragging = false
+                        dragDirection = null
                         true
                     } else {
                         // Not dragging, treat as a click
+                        android.util.Log.d("SmileBanner", "Container ACTION_UP: treating as click")
                         config.onBannerClick?.invoke(container)
-                        false // Let other views handle it too
+                        false
                     }
                 }
-                else -> false
+                else -> {
+                    android.util.Log.d("SmileBanner", "Container: unknown event action=${event.action}")
+                    false
+                }
             }
         }
     }
@@ -778,6 +1547,8 @@ class SmileBanner private constructor(
      * Find the view at the given coordinates
      */
     private fun findViewAt(parent: ViewGroup, x: Float, y: Float): View? {
+        android.util.Log.d("SmileBanner", "findViewAt: parent=$parent, x=$x, y=$y, childCount=${parent.childCount}")
+
         for (i in parent.childCount - 1 downTo 0) {
             val child = parent.getChildAt(i)
             if (child.visibility == View.VISIBLE) {
@@ -789,16 +1560,24 @@ class SmileBanner private constructor(
                 val childX = location[0] - parentLocation[0]
                 val childY = location[1] - parentLocation[1]
 
+                android.util.Log.d("SmileBanner", "findViewAt: checking child[${i}]=${child::class.simpleName}, id=${child.id}, bounds=[${childX},${childY},${childX + child.width},${childY + child.height}]")
+
                 if (x >= childX && x <= childX + child.width &&
                     y >= childY && y <= childY + child.height) {
+                    android.util.Log.d("SmileBanner", "findViewAt: touch inside child[${i}]=${child::class.simpleName}")
                     if (child is ViewGroup) {
                         val nestedView = findViewAt(child, x - childX, y - childY)
-                        if (nestedView != null) return nestedView
+                        if (nestedView != null) {
+                            android.util.Log.d("SmileBanner", "findViewAt: found nested view=${nestedView::class.simpleName}, id=${nestedView.id}")
+                            return nestedView
+                        }
                     }
+                    android.util.Log.d("SmileBanner", "findViewAt: returning child=${child::class.simpleName}, id=${child.id}")
                     return child
                 }
             }
         }
+        android.util.Log.d("SmileBanner", "findViewAt: no view found at coordinates")
         return null
     }
 
@@ -828,11 +1607,15 @@ class SmileBanner private constructor(
         val width = ViewGroup.LayoutParams.MATCH_PARENT
         val height = ViewGroup.LayoutParams.WRAP_CONTENT
 
+        // Capture reference to this SmileBanner instance for use in closures
+        val thisBanner = this
+
         popupWindow = PopupWindow(bannerView, width, height, false).apply {
-            // Set animation style based on position
-            animationStyle = when (config.position) {
-                BannerPosition.TOP -> R.style.SmileBannerAnimationTop
-                BannerPosition.BOTTOM -> R.style.SmileBannerAnimationBottom
+            // Set animation style: use push-up stacking animation when replacing
+            animationStyle = if (isReplacingBanner) {
+                R.style.SmileBannerAnimationTopShort
+            } else {
+                R.style.SmileBannerAnimationTop
             }
 
             // Allow popup to draw outside of screen bounds (over status bar)
@@ -846,20 +1629,84 @@ class SmileBanner private constructor(
             // Show the popup
             rootView.post {
                 try {
-                    val gravity = when (config.position) {
-                        BannerPosition.TOP -> Gravity.TOP
-                        BannerPosition.BOTTOM -> Gravity.BOTTOM
+                    // When replacing, hide content initially so only background is visible
+                    if (isReplacingBanner) {
+                        hideBannerContent()
                     }
 
-                    // Calculate insets for Android 15+ edge-to-edge support
-                    val (xOffset, yOffset) = calculateInsets(rootView)
-
-                    showAtLocation(rootView, gravity, xOffset, yOffset)
+                    // Always show at TOP
+                    showAtLocation(rootView, Gravity.TOP, 0, 0)
 
                     // Apply system bar padding after popup is shown
                     bannerView?.post {
                         applySystemBarPadding()
                     }
+
+                    // When replacing, fade in content after 30% of animation (105ms)
+                    if (isReplacingBanner) {
+                        bannerView?.postDelayed({
+                            // Fade in content quickly over 150ms
+                            fadeInBannerContent(150)
+                        }, 105)
+                    }
+
+                    // If this banner replaced another, reset animation style after entrance animation completes
+                    // Reset to normal style so later dismissal uses the proper slide-out animation
+                    if (isReplacingBanner) {
+                        bannerView?.postDelayed({
+                            popupWindow?.let { popup ->
+                                popup.animationStyle = R.style.SmileBannerAnimationTop
+                                // Call update() to apply the animation style change
+                                popup.update()
+                            }
+                        }, 350L) // Full push-up slide animation duration
+                    }
+
+                    // After entrance animation completes, trigger internal callback for queue management
+                    val entranceAnimationDuration = if (isReplacingBanner) 350L else 350L // Both use same duration
+                    bannerView?.postDelayed({
+                        android.util.Log.d("SmileBanner", "Entrance animation complete")
+
+                        // IMPORTANT: Schedule queue management FIRST, before calling developer's callback
+                        // This ensures that even if developer's callback blocks or takes time,
+                        // the queue timer is already set up and will fire at the correct time
+                        if (currentBanner == thisBanner && pendingQueue.isNotEmpty()) {
+                            // Calculate how long this banner has been shown
+                            val currentTime = System.currentTimeMillis()
+                            val timeShown = currentTime - lastBannerShowTime
+
+                            // Calculate delay: minimum display time + 300ms transition delay
+                            val minDisplayRemaining = if (timeShown < MIN_DISPLAY_TIME) {
+                                MIN_DISPLAY_TIME - timeShown
+                            } else {
+                                0L
+                            }
+                            val transitionDelay = 300L // Additional delay between banners
+                            val totalDelay = minDisplayRemaining + transitionDelay
+
+                            android.util.Log.d("SmileBanner", "Scheduling next banner in queue after ${totalDelay}ms (timeShown=${timeShown}ms, minDisplayTime=${MIN_DISPLAY_TIME}ms, transitionDelay=${transitionDelay}ms)")
+
+                            // Schedule processing of next banner
+                            bannerView?.postDelayed({
+                                if (currentBanner == thisBanner) {
+                                    android.util.Log.d("SmileBanner", "Processing next banner from queue")
+                                    processNextInQueue()
+                                }
+                            }, totalDelay)
+                        }
+
+                        // Call developer's callback asynchronously on main thread so it doesn't block our code
+                        // Even if developer does heavy synchronous work, it won't block the library
+                        config.onShowAnimationComplete?.let { callback ->
+                            scope.launch {
+                                try {
+                                    callback.invoke()
+                                } catch (e: Exception) {
+                                    android.util.Log.e("SmileBanner", "Error in developer's onShowAnimationComplete callback", e)
+                                }
+                            }
+                        }
+                    }, entranceAnimationDuration)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -867,74 +1714,6 @@ class SmileBanner private constructor(
         }
     }
 
-    /**
-     * Adjust the banner's initial vertical position to account for status bar and cutout.
-     * This ensures the XML slide-in animation starts from completely above the screen.
-     */
-    private fun adjustInitialPositionForAnimation(rootView: View) {
-        val card = bannerView?.findViewById<CardView>(R.id.bannerCard) ?: return
-
-        var topInset = 0
-
-        val insets = ViewCompat.getRootWindowInsets(rootView)
-        if (insets != null) {
-            // Get status bar inset
-            val systemBarsInsets = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val statusBarHeight = systemBarsInsets.top
-
-            // Get display cutout inset
-            val displayCutoutInsets = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
-            val cutoutHeight = displayCutoutInsets.top
-
-            // Use the maximum of status bar and cutout
-            topInset = maxOf(statusBarHeight, cutoutHeight)
-        }
-
-        // Fallback: if insets are not available, calculate status bar height manually
-        if (topInset == 0) {
-            val resourceId = activity.resources.getIdentifier("status_bar_height", "dimen", "android")
-            if (resourceId > 0) {
-                topInset = activity.resources.getDimensionPixelSize(resourceId)
-            }
-        }
-
-        // Apply negative translation to push the banner up by the status bar/cutout height
-        // The XML animation will then slide it down, starting from above the screen
-        if (topInset > 0) {
-            card.translationY = -topInset.toFloat()
-        }
-    }
-
-    /**
-     * Calculate window insets for proper positioning with edge-to-edge support
-     * For TOP banners: no offset (fills from top, padding is applied to content)
-     * For BOTTOM banners: offset to account for navigation bar
-     */
-    private fun calculateInsets(rootView: View): Pair<Int, Int> {
-        var xOffset = 0
-        var yOffset = 0
-
-        // Use ViewCompat for backward compatibility
-        val insets = ViewCompat.getRootWindowInsets(rootView)
-        if (insets != null) {
-            when (config.position) {
-                BannerPosition.TOP -> {
-                    // No offset - banner fills from the very top
-                    // Content padding is applied in applySystemBarPadding()
-                    yOffset = 0
-                }
-                BannerPosition.BOTTOM -> {
-                    // Account for navigation bar at bottom
-                    val systemBarsInsets = insets.getInsets(
-                        WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
-                    )
-                    yOffset = systemBarsInsets.bottom
-                }
-            }
-        }
-
-        return Pair(xOffset, yOffset)
-    }
 
     private fun setupAutoDismiss() {
         if (config.duration > 0) {
@@ -993,7 +1772,6 @@ class SmileBanner private constructor(
         private var titleRes: Int? = null
         private var message: String? = null
         private var messageRes: Int? = null
-        private var position: BannerPosition = BannerPosition.TOP
         private var duration: Long = 0L
         private var dismissible: Boolean = true
         private var customLayout: Int? = null
@@ -1004,6 +1782,8 @@ class SmileBanner private constructor(
         private var icon: Int? = null
         private var onBannerClick: ((View) -> Unit)? = null
         private var onDismiss: (() -> Unit)? = null
+        private var onShowAnimationComplete: (() -> Unit)? = null
+        private var onDismissAnimationComplete: (() -> Unit)? = null
         private var vibrationDuration: VibrationDuration = VibrationDuration.NONE
         // Left side configuration
         private var leftView: View? = null
@@ -1061,11 +1841,6 @@ class SmileBanner private constructor(
             this.messageRes = messageResId
             this.message = null
         }
-
-        /**
-         * Set the banner position
-         */
-        fun position(position: BannerPosition) = apply { this.position = position }
 
         /**
          * Set auto-dismiss duration in milliseconds (0 = no auto-dismiss)
@@ -1128,6 +1903,18 @@ class SmileBanner private constructor(
          * Set dismiss callback
          */
         fun onDismiss(listener: () -> Unit) = apply { this.onDismiss = listener }
+
+        /**
+         * Set callback for when the show/entrance animation completes
+         * This is called after the banner has fully appeared on screen
+         */
+        fun onShowAnimationComplete(listener: () -> Unit) = apply { this.onShowAnimationComplete = listener }
+
+        /**
+         * Set callback for when the dismiss/exit animation completes
+         * This is called after the banner has fully disappeared from screen
+         */
+        fun onDismissAnimationComplete(listener: () -> Unit) = apply { this.onDismissAnimationComplete = listener }
 
         /**
          * Set a custom view for the left side (highest priority)
@@ -1250,7 +2037,6 @@ class SmileBanner private constructor(
                 titleRes = titleRes,
                 message = message,
                 messageRes = messageRes,
-                position = position,
                 duration = duration,
                 dismissible = dismissible,
                 customLayout = customLayout,
@@ -1261,6 +2047,8 @@ class SmileBanner private constructor(
                 icon = icon,
                 onBannerClick = onBannerClick,
                 onDismiss = onDismiss,
+                onShowAnimationComplete = onShowAnimationComplete,
+                onDismissAnimationComplete = onDismissAnimationComplete,
                 vibrationDuration = vibrationDuration,
                 leftView = leftView,
                 leftImage = leftImage,

@@ -6,9 +6,6 @@
     <string name="btn_info">Show Info</string>
     <string name="btn_warning">Show Warning</string>
     <string name="btn_error">Show Error</string>
-    <string name="title_positions">Positions</string>
-    <string name="btn_top">Show at Top</string>
-    <string name="btn_bottom">Show at Bottom</string>
     <string name="title_duration">Auto-Dismiss</string>
     <string name="btn_auto_dismiss">Show with Auto-Dismiss (3s)</string>
     <string name="title_customization">Customization</string>
@@ -18,10 +15,10 @@
 
     <string name="banner_success_msg">Operation completed successfully!</string>
     <string name="banner_info_msg">This is an informational message</string>
+    <string name="banner_warning_title">Warning</string>
     <string name="banner_warning_msg">Please check your input</string>
+    <string name="banner_error_title">Error</string>
     <string name="banner_error_msg">An error occurred while processing</string>
-    <string name="banner_top_msg">This banner appears at the top</string>
-    <string name="banner_bottom_msg">This banner appears at the bottom</string>
     <string name="banner_auto_msg">This banner will auto-dismiss in 3 seconds</string>
     <string name="banner_custom_msg">This banner has custom styling</string>
     <string name="banner_click_msg">Tap this banner for more info</string>

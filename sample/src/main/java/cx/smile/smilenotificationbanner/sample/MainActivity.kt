@@ -5,14 +5,9 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
-import cx.smile.smilenotificationbanner.BannerPosition
 import cx.smile.smilenotificationbanner.BannerType
 import cx.smile.smilenotificationbanner.SmileBanner
 import cx.smile.smilenotificationbanner.VibrationDuration
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -21,13 +16,13 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         setupBannerTypeButtons()
-        setupPositionButtons()
         setupDurationButtons()
         setupCustomizationButtons()
         setupVibrationButtons()
         setupSingletonButtons()
         setupEnhancedLayoutButtons()
         setupExpandableButtons()
+        setupDebugButtons()
     }
 
     private fun setupBannerTypeButtons() {
@@ -35,8 +30,7 @@ class MainActivity : AppCompatActivity() {
             SmileBanner.show(
                 this,
                 BannerType.SUCCESS,
-                getString(R.string.banner_success_msg),
-                BannerPosition.TOP
+                getString(R.string.banner_success_msg)
             )
         }
 
@@ -44,47 +38,24 @@ class MainActivity : AppCompatActivity() {
             SmileBanner.show(
                 this,
                 BannerType.INFO,
-                getString(R.string.banner_info_msg),
-                BannerPosition.TOP
+                getString(R.string.banner_info_msg)
             )
         }
 
         findViewById<MaterialButton>(R.id.btnWarning).setOnClickListener {
-            SmileBanner.show(
-                this,
-                BannerType.WARNING,
-                getString(R.string.banner_warning_msg),
-                BannerPosition.TOP
-            )
+            SmileBanner.make(this)
+                .type(BannerType.WARNING)
+                .title(getString(R.string.banner_warning_title))
+                .message(getString(R.string.banner_warning_msg))
+                .show()
         }
 
         findViewById<MaterialButton>(R.id.btnError).setOnClickListener {
-            SmileBanner.show(
-                this,
-                BannerType.ERROR,
-                getString(R.string.banner_error_msg),
-                BannerPosition.TOP
-            )
-        }
-    }
-
-    private fun setupPositionButtons() {
-        findViewById<MaterialButton>(R.id.btnTop).setOnClickListener {
-            SmileBanner.show(
-                this,
-                BannerType.INFO,
-                getString(R.string.banner_top_msg),
-                BannerPosition.TOP
-            )
-        }
-
-        findViewById<MaterialButton>(R.id.btnBottom).setOnClickListener {
-            SmileBanner.show(
-                this,
-                BannerType.INFO,
-                getString(R.string.banner_bottom_msg),
-                BannerPosition.BOTTOM
-            )
+            SmileBanner.make(this)
+                .type(BannerType.ERROR)
+                .title(getString(R.string.banner_error_title))
+                .message(getString(R.string.banner_error_msg))
+                .show()
         }
     }
 
@@ -94,7 +65,6 @@ class MainActivity : AppCompatActivity() {
                 this,
                 BannerType.INFO,
                 getString(R.string.banner_auto_msg),
-                BannerPosition.TOP,
                 3000L // 3 seconds
             )
         }
@@ -106,7 +76,6 @@ class MainActivity : AppCompatActivity() {
             SmileBanner.make(this)
                 .type(BannerType.CUSTOM)
                 .message(R.string.banner_custom_msg) // Using string resource ID
-                .position(BannerPosition.TOP)
                 .backgroundColor(Color.parseColor("#9C27B0")) // Purple
                 .textColor(Color.WHITE)
                 .show()
@@ -117,7 +86,6 @@ class MainActivity : AppCompatActivity() {
             SmileBanner.make(this)
                 .type(BannerType.INFO)
                 .message(getString(R.string.banner_click_msg)) // Using string directly
-                .position(BannerPosition.TOP)
                 .onBannerClick { view ->
                     Toast.makeText(
                         this,
@@ -140,7 +108,6 @@ class MainActivity : AppCompatActivity() {
             SmileBanner.make(this)
                 .type(BannerType.INFO)
                 .message(getString(R.string.banner_vibrate_msg))
-                .position(BannerPosition.TOP)
                 .vibrate(VibrationDuration.SHORT)
                 .duration(2000L)
                 .show()
@@ -151,7 +118,6 @@ class MainActivity : AppCompatActivity() {
             SmileBanner.make(this)
                 .type(BannerType.INFO)
                 .message(getString(R.string.banner_vibrate_msg))
-                .position(BannerPosition.TOP)
                 .vibrate(VibrationDuration.MEDIUM)
                 .duration(2000L)
                 .show()
@@ -162,7 +128,6 @@ class MainActivity : AppCompatActivity() {
             SmileBanner.make(this)
                 .type(BannerType.INFO)
                 .message(getString(R.string.banner_vibrate_msg))
-                .position(BannerPosition.TOP)
                 .vibrate(VibrationDuration.LONG)
                 .duration(2000L)
                 .show()
@@ -170,49 +135,91 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupSingletonButtons() {
-        // Test rapid banners to demonstrate singleton behavior
+        // Test rapid banners to demonstrate singleton behavior and height animations
+        // Library manages timing internally - no manual delays needed
         findViewById<MaterialButton>(R.id.btnRapidBanners).setOnClickListener {
-            // Simulate multiple notifications arriving in quick succession
-            // Only the last one should be visible
-            CoroutineScope(Dispatchers.Main).launch {
-                SmileBanner.make(this@MainActivity)
-                    .type(BannerType.INFO)
-                    .message(getString(R.string.banner_message_1))
-                    .position(BannerPosition.TOP)
-                    .vibrate()
-                    .duration(3000L)
-                    .show()
+            // Show 10 different banner types with varying heights
+            // 1. Short message only
+            SmileBanner.make(this)
+                .type(BannerType.INFO)
+                .message("New message")
+                .duration(3000L)
+                .show()
 
-                delay(300) // Simulate message arriving 300ms later
+            // 2. Title + message (taller)
+            SmileBanner.make(this)
+                .type(BannerType.WARNING)
+                .title("Warning")
+                .message("This is a warning message with both title and content")
+                .duration(3000L)
+                .show()
 
-                SmileBanner.make(this@MainActivity)
-                    .type(BannerType.INFO)
-                    .message(getString(R.string.banner_message_2))
-                    .position(BannerPosition.TOP)
-                    .vibrate()
-                    .duration(3000L)
-                    .show()
+            // 3. Short message again (should shrink)
+            SmileBanner.make(this)
+                .type(BannerType.SUCCESS)
+                .message("Done!")
+                .duration(3000L)
+                .show()
 
-                delay(300)
+            // 4. Longer message (taller)
+            SmileBanner.make(this)
+                .type(BannerType.ERROR)
+                .title("Error")
+                .message("An error occurred while processing your request. Please try again later.")
+                .duration(3000L)
+                .show()
 
-                SmileBanner.make(this@MainActivity)
-                    .type(BannerType.INFO)
-                    .message(getString(R.string.banner_message_3))
-                    .position(BannerPosition.TOP)
-                    .vibrate()
-                    .duration(3000L)
-                    .show()
+            // 5. Medium message
+            SmileBanner.make(this)
+                .type(BannerType.INFO)
+                .title("New Message")
+                .message("You have a new message from Alice")
+                .duration(3000L)
+                .show()
 
-                delay(300)
+            // 6. Expandable banner (tallest)
+            SmileBanner.make(this)
+                .type(BannerType.INFO)
+                .title("Message from Bob")
+                .message("Hey! How are you?")
+                .expandable(true)
+                .expandableInputHint("Reply...")
+                .expandableButtonText("Send")
+                .onExpandableSubmit { text ->
+                    Toast.makeText(this, "Replied: $text", Toast.LENGTH_SHORT).show()
+                }
+                .duration(5000L)
+                .show()
 
-                SmileBanner.make(this@MainActivity)
-                    .type(BannerType.SUCCESS)
-                    .message(getString(R.string.banner_message_4))
-                    .position(BannerPosition.TOP)
-                    .vibrate()
-                    .duration(3000L)
-                    .show()
-            }
+            // 7. Short message (should shrink from expandable)
+            SmileBanner.make(this)
+                .type(BannerType.SUCCESS)
+                .message("Message sent!")
+                .duration(3000L)
+                .show()
+
+            // 8. Very long message (wraps multiple lines)
+            SmileBanner.make(this)
+                .type(BannerType.WARNING)
+                .title("Storage Almost Full")
+                .message("Your device storage is almost full. Please delete some files to free up space and continue using the app normally.")
+                .duration(3000L)
+                .show()
+
+            // 9. Title only
+            SmileBanner.make(this)
+                .type(BannerType.INFO)
+                .title("Notification")
+                .duration(3000L)
+                .show()
+
+            // 10. Final banner with title and message
+            SmileBanner.make(this)
+                .type(BannerType.SUCCESS)
+                .title("All Done!")
+                .message("You've seen all the different banner variations")
+                .duration(3000L)
+                .show()
         }
     }
 
@@ -223,7 +230,6 @@ class MainActivity : AppCompatActivity() {
                 .type(BannerType.INFO)
                 .title(getString(R.string.banner_title_example))
                 .message(getString(R.string.banner_subtitle_example))
-                .position(BannerPosition.TOP)
                 .duration(3000L)
                 .show()
         }
@@ -235,7 +241,6 @@ class MainActivity : AppCompatActivity() {
                 .title("New Achievement!")
                 .message("You've unlocked a new badge")
                 .leftImage(android.R.drawable.star_big_on)
-                .position(BannerPosition.TOP)
                 .duration(3000L)
                 .show()
         }
@@ -247,7 +252,6 @@ class MainActivity : AppCompatActivity() {
                 .title("Update Available")
                 .message("Version 2.0 is ready to install")
                 .rightImage(android.R.drawable.ic_popup_sync)
-                .position(BannerPosition.TOP)
                 .duration(3000L)
                 .show()
         }
@@ -274,7 +278,6 @@ class MainActivity : AppCompatActivity() {
                 .title("New Messages")
                 .message("You have 3 unread messages")
                 .rightView(badgeView)
-                .position(BannerPosition.TOP)
                 .duration(3000L)
                 .show()
         }
@@ -297,8 +300,19 @@ class MainActivity : AppCompatActivity() {
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                 }
-                .position(BannerPosition.TOP)
                 .duration(10000L) // Longer duration to allow interaction
+                .show()
+        }
+    }
+
+    private fun setupDebugButtons() {
+        // Debug button with colored sections and long text
+        findViewById<MaterialButton>(R.id.btnDebugLayout)?.setOnClickListener {
+            SmileBanner.make(this)
+                .type(BannerType.SUCCESS)
+                .title("Debug Layout Test Banner")
+                .message("This is a very long message that demonstrates the layout behavior with multiple lines of text. The red background shows the container, green shows the left icon area, blue shows the content area, and yellow shows the right area.")
+                .duration(10000L)
                 .show()
         }
     }
