@@ -1,7 +1,7 @@
 // Top-level build file
 
 // Library version - update this for new releases
-val libraryVersion = "2.5.0"
+val libraryVersion = "2.5.1"
 
 // Make version available to subprojects
 extra["libraryVersion"] = libraryVersion
