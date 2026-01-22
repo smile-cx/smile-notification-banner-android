@@ -79,6 +79,12 @@ class SmileBanner private constructor(
         // When queue is full, oldest is removed and newest is added (rotation)
         private const val MAX_QUEUE_SIZE = 1
 
+        // Pending banner for cross-activity transitions
+        // Stores banner configuration to be shown on the next activity that calls showPendingIfAvailable()
+        @Volatile
+        private var pendingBanner: BannerConfig? = null
+        private val pendingBannerLock = Any()
+
         // Minimum time between banner transitions to avoid too-fast animations (milliseconds)
         private const val MIN_TRANSITION_DELAY = 200L
         private var lastBannerShowTime = 0L
@@ -286,6 +292,92 @@ class SmileBanner private constructor(
         @JvmStatic
         fun dismissCurrent() {
             currentBanner?.dismiss()
+        }
+
+        /**
+         * Schedule a banner to be shown on the next activity that calls showPendingIfAvailable()
+         * Only one pending banner can be scheduled at a time - calling this multiple times
+         * will replace the previous pending banner.
+         *
+         * Example usage:
+         * ```
+         * // In Activity A (about to finish)
+         * SmileBanner.schedulePending(this)
+         *     .type(BannerType.SUCCESS)
+         *     .message("Operation completed!")
+         *     .duration(3000)
+         *     .schedule()
+         * finish()
+         *
+         * // In Activity B (destination)
+         * override fun onResume() {
+         *     super.onResume()
+         *     SmileBanner.showPendingIfAvailable(this)
+         * }
+         * ```
+         *
+         * @param context Application or Activity context (not used for display, only for resource access)
+         * @return Builder configured for pending mode. Call schedule() to store the configuration.
+         */
+        @JvmStatic
+        fun schedulePending(context: Context): Builder {
+            return Builder(null).apply {
+                isPending = true
+            }
+        }
+
+        /**
+         * Show the pending banner if one is scheduled.
+         * The pending banner is automatically cleared after showing (one-time use).
+         *
+         * This method is typically called in the destination activity's onCreate() or onResume()
+         * to display a banner that was scheduled from a previous activity.
+         *
+         * Example:
+         * ```
+         * override fun onResume() {
+         *     super.onResume()
+         *     SmileBanner.showPendingIfAvailable(this)
+         * }
+         * ```
+         *
+         * @param activity The activity to display the banner in
+         * @return true if a pending banner was shown, false if none was scheduled
+         */
+        @JvmStatic
+        fun showPendingIfAvailable(activity: Activity): Boolean {
+            synchronized(pendingBannerLock) {
+                val config = pendingBanner ?: return false
+                pendingBanner = null // Auto-clear before showing
+
+                // Use existing create() and show() logic
+                create(activity, config).show()
+                return true
+            }
+        }
+
+        /**
+         * Clear the pending banner without showing it.
+         * Use this if you want to cancel a scheduled pending banner.
+         *
+         * Example:
+         * ```
+         * // Cancel pending banner if user backs out
+         * override fun onBackPressed() {
+         *     SmileBanner.clearPending()
+         *     super.onBackPressed()
+         * }
+         * ```
+         *
+         * @return true if a pending banner was cleared, false if none was scheduled
+         */
+        @JvmStatic
+        fun clearPending(): Boolean {
+            synchronized(pendingBannerLock) {
+                val hadPending = pendingBanner != null
+                pendingBanner = null
+                return hadPending
+            }
         }
     }
 
@@ -1714,7 +1806,8 @@ class SmileBanner private constructor(
      * Builder class for fluent banner configuration
      * Allows chaining configuration methods directly on SmileBanner
      */
-    class Builder(private val activity: Activity) {
+    class Builder(private val activity: Activity?) {
+        internal var isPending: Boolean = false
         private var type: BannerType = BannerType.INFO
         private var title: String? = null
         private var titleRes: Int? = null
@@ -1976,10 +2069,36 @@ class SmileBanner private constructor(
         fun vibrate() = apply { this.vibrationDuration = VibrationDuration.SHORT }
 
         /**
-         * Build and return the SmileBanner instance (does not show it yet)
+         * Schedule this banner to be shown later via showPendingIfAvailable()
+         * Only available when builder is created via schedulePending()
+         * Calling this multiple times will replace any previously scheduled pending banner
          */
-        fun build(): SmileBanner {
-            val config = BannerConfig(
+        fun schedule() {
+            if (!isPending) {
+                throw IllegalStateException("schedule() can only be called on pending banners. Use schedulePending() to create a pending banner.")
+            }
+
+            val config = createBannerConfig()
+
+            synchronized(pendingBannerLock) {
+                if (pendingBanner != null) {
+                    android.util.Log.w("SmileBanner", "Replacing existing pending banner")
+                }
+                pendingBanner = config
+            }
+        }
+
+        /**
+         * Create BannerConfig from current builder state
+         * Used by both build() and schedule() methods
+         */
+        private fun createBannerConfig(): BannerConfig {
+            // Validate required fields
+            require(message != null || messageRes != null) {
+                "Message is required. Use message() or message(Int) to set a message."
+            }
+
+            return BannerConfig(
                 type = type,
                 title = title,
                 titleRes = titleRes,
@@ -2015,6 +2134,18 @@ class SmileBanner private constructor(
                 expandableButtonTextRes = expandableButtonTextRes,
                 onExpandableSubmit = onExpandableSubmit
             )
+        }
+
+        /**
+         * Build and return the SmileBanner instance (does not show it yet)
+         */
+        fun build(): SmileBanner {
+            if (isPending) {
+                throw IllegalStateException("Cannot call build() on pending banner. Use schedule() instead.")
+            }
+
+            requireNotNull(activity) { "Activity is required for non-pending banners" }
+            val config = createBannerConfig()
             return create(activity, config)
         }
 
@@ -2022,6 +2153,9 @@ class SmileBanner private constructor(
          * Build and immediately show the banner
          */
         fun show(): SmileBanner {
+            if (isPending) {
+                throw IllegalStateException("Cannot call show() on pending banner. Use schedule() instead.")
+            }
             return build().apply { show() }
         }
     }

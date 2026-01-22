@@ -172,6 +172,31 @@
             android:text="@string/btn_expandable_banner"
             android:layout_marginBottom="8dp" />
 
+        <!-- Pending Banner Section -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="PENDING BANNER (CROSS-ACTIVITY)"
+            android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnScheduleAndNavigate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Schedule Banner &amp; Navigate"
+            android:layout_marginBottom="8dp"
+            app:icon="@android:drawable/ic_menu_send" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnClearPending"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Clear Pending Banner"
+            android:layout_marginBottom="16dp"
+            app:icon="@android:drawable/ic_menu_close_clear_cancel" />
+
         <!-- Debug Section -->
         <TextView
             android:layout_width="match_parent"

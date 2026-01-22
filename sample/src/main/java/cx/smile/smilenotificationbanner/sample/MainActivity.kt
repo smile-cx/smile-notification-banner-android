@@ -1,5 +1,6 @@
 package cx.smile.smilenotificationbanner.sample
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.widget.Toast
@@ -22,7 +23,14 @@ class MainActivity : AppCompatActivity() {
         setupSingletonButtons()
         setupEnhancedLayoutButtons()
         setupExpandableButtons()
+        setupPendingBannerButtons()
         setupDebugButtons()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Show pending banner if one was scheduled
+        SmileBanner.showPendingIfAvailable(this)
     }
 
     private fun setupBannerTypeButtons() {
@@ -302,6 +310,33 @@ class MainActivity : AppCompatActivity() {
                 }
                 .duration(3000L) // Auto-dismiss after 3 seconds
                 .show()
+        }
+    }
+
+    private fun setupPendingBannerButtons() {
+        // Schedule a pending banner and navigate to second activity
+        findViewById<MaterialButton>(R.id.btnScheduleAndNavigate).setOnClickListener {
+            // Schedule a pending banner that will show on the next activity
+            SmileBanner.schedulePending(this)
+                .type(BannerType.SUCCESS)
+                .message("Welcome to the next screen! This banner was scheduled from the previous activity.")
+                .leftImage(android.R.drawable.star_big_on)
+                .duration(5000L)
+                .schedule()
+
+            // Navigate to second activity
+            Toast.makeText(this, "Banner scheduled! Navigating...", Toast.LENGTH_SHORT).show()
+            startActivity(Intent(this, SecondActivity::class.java))
+        }
+
+        // Clear any pending banner
+        findViewById<MaterialButton>(R.id.btnClearPending).setOnClickListener {
+            val cleared = SmileBanner.clearPending()
+            if (cleared) {
+                Toast.makeText(this, "Pending banner cleared", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "No pending banner to clear", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
