@@ -302,7 +302,7 @@ class SmileBanner private constructor(
          * Example usage:
          * ```
          * // In Activity A (about to finish)
-         * SmileBanner.schedulePending(this)
+         * SmileBanner.schedulePending()
          *     .type(BannerType.SUCCESS)
          *     .message("Operation completed!")
          *     .duration(3000)
@@ -316,11 +316,10 @@ class SmileBanner private constructor(
          * }
          * ```
          *
-         * @param context Application or Activity context (not used for display, only for resource access)
          * @return Builder configured for pending mode. Call schedule() to store the configuration.
          */
         @JvmStatic
-        fun schedulePending(context: Context): Builder {
+        fun schedulePending(): Builder {
             return Builder(null).apply {
                 isPending = true
             }

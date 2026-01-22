@@ -317,7 +317,7 @@ class MainActivity : AppCompatActivity() {
         // Schedule a pending banner and navigate to second activity
         findViewById<MaterialButton>(R.id.btnScheduleAndNavigate).setOnClickListener {
             // Schedule a pending banner that will show on the next activity
-            SmileBanner.schedulePending(this)
+            SmileBanner.schedulePending()
                 .type(BannerType.SUCCESS)
                 .message("Welcome to the next screen! This banner was scheduled from the previous activity.")
                 .leftImage(android.R.drawable.star_big_on)

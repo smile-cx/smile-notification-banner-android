@@ -20,9 +20,6 @@ import kotlin.concurrent.thread
 class SmileBannerPendingTest {
 
     @Mock
-    private lateinit var mockContext: Context
-
-    @Mock
     private lateinit var mockActivity: Activity
 
     @After
@@ -33,20 +30,20 @@ class SmileBannerPendingTest {
 
     @Test
     fun `schedulePending returns builder instance`() {
-        val builder = SmileBanner.schedulePending(mockContext)
+        val builder = SmileBanner.schedulePending()
         assert(builder::class == SmileBanner.Builder::class)
     }
 
     @Test
     fun `schedulePending builder has isPending flag set`() {
-        val builder = SmileBanner.schedulePending(mockContext)
+        val builder = SmileBanner.schedulePending()
         assert(builder.isPending)
     }
 
     @Test
     fun `schedule stores pending banner configuration`() {
         // Schedule a pending banner
-        SmileBanner.schedulePending(mockContext)
+        SmileBanner.schedulePending()
             .type(BannerType.SUCCESS)
             .message("Test message")
             .schedule()
@@ -64,7 +61,7 @@ class SmileBannerPendingTest {
 
     @Test
     fun `clearPending returns true when pending banner exists`() {
-        SmileBanner.schedulePending(mockContext)
+        SmileBanner.schedulePending()
             .message("Test")
             .schedule()
 
@@ -74,7 +71,7 @@ class SmileBannerPendingTest {
 
     @Test
     fun `clearPending removes pending banner`() {
-        SmileBanner.schedulePending(mockContext)
+        SmileBanner.schedulePending()
             .message("Test")
             .schedule()
 
@@ -97,12 +94,12 @@ class SmileBannerPendingTest {
     fun `schedule replaces previous pending banner`() {
         // Schedule first banner
         try {
-            SmileBanner.schedulePending(mockContext)
+            SmileBanner.schedulePending()
                 .message("First")
                 .schedule()
 
             // Schedule second banner (should replace first)
-            SmileBanner.schedulePending(mockContext)
+            SmileBanner.schedulePending()
                 .message("Second")
                 .schedule()
         } catch (e: RuntimeException) {
@@ -121,14 +118,14 @@ class SmileBannerPendingTest {
 
     @Test(expected = IllegalStateException::class)
     fun `calling build on pending builder throws exception`() {
-        SmileBanner.schedulePending(mockContext)
+        SmileBanner.schedulePending()
             .message("Test")
             .build()
     }
 
     @Test(expected = IllegalStateException::class)
     fun `calling show on pending builder throws exception`() {
-        SmileBanner.schedulePending(mockContext)
+        SmileBanner.schedulePending()
             .message("Test")
             .show()
     }
@@ -142,7 +139,7 @@ class SmileBannerPendingTest {
 
     @Test(expected = IllegalArgumentException::class)
     fun `schedule without message throws exception`() {
-        SmileBanner.schedulePending(mockContext)
+        SmileBanner.schedulePending()
             .type(BannerType.INFO)
             .schedule()
     }
@@ -155,7 +152,7 @@ class SmileBannerPendingTest {
         // Launch multiple threads that schedule banners concurrently
         val threads = (1..threadCount).map { i ->
             thread {
-                SmileBanner.schedulePending(mockContext)
+                SmileBanner.schedulePending()
                     .message("Message $i")
                     .schedule()
                 latch.countDown()
@@ -181,7 +178,7 @@ class SmileBannerPendingTest {
         whenever(mockActivity.isDestroyed).thenReturn(false)
 
         // Schedule a pending banner
-        SmileBanner.schedulePending(mockContext)
+        SmileBanner.schedulePending()
             .message("Test")
             .schedule()
 
@@ -212,7 +209,7 @@ class SmileBannerPendingTest {
     @Test
     fun `schedulePending accepts all banner configuration options`() {
         // Test that all configuration methods work with pending banners
-        SmileBanner.schedulePending(mockContext)
+        SmileBanner.schedulePending()
             .type(BannerType.SUCCESS)
             .message("Test message")
             .title("Test title")
@@ -227,7 +224,7 @@ class SmileBannerPendingTest {
 
     @Test
     fun `schedule with message resource ID works`() {
-        SmileBanner.schedulePending(mockContext)
+        SmileBanner.schedulePending()
             .message(android.R.string.ok)
             .schedule()
 
@@ -256,7 +253,7 @@ class SmileBannerPendingTest {
     @Test
     fun `pending banner workflow - schedule then clear manually`() {
         // Schedule a pending banner
-        SmileBanner.schedulePending(mockContext)
+        SmileBanner.schedulePending()
             .message("Test")
             .schedule()
 

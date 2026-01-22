@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Pending Banner (Cross-Activity) Feature**: Schedule banners to be shown on the next activity
-  - `SmileBanner.schedulePending(context)` - Create a builder for scheduling pending banners
+  - `SmileBanner.schedulePending()` - Create a builder for scheduling pending banners (no context required)
   - `SmileBanner.showPendingIfAvailable(activity)` - Show pending banner if one exists
   - `SmileBanner.clearPending()` - Clear pending banner without showing
   - `.schedule()` terminal method for pending banner builders
